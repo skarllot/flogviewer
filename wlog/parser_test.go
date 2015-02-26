@@ -18,7 +18,6 @@ package wlog
 
 import (
 	"encoding/json"
-	"regexp"
 	"testing"
 	"time"
 )
@@ -28,9 +27,8 @@ const (
 )
 
 func TestParseLine(t *testing.T) {
-	r, _ := regexp.Compile(LINE_KEY_PATTERN)
 	c := make(chan *WebFilter)
-	go ParseLine(TEST_LINE, r, c)
+	go ParseLine(TEST_LINE, c)
 	result := <-c
 	if result == nil {
 		t.Fatal("Could not parse log line")
