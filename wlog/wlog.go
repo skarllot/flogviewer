@@ -32,16 +32,40 @@ func LoadWlog(cmd *gocli.Command) {
 	}
 
 	for _, v := range wlogChilds {
+		switch v.Name {
+		case "load":
+			v.Run = wfc.Load
+		case "save":
+			v.Run = wfc.SaveToFile
+		}
 		cmd.AddChild(v)
 	}
-	cmd.Find("load").Run = wfc.Load
-	cmd.Find("save").Run = wfc.SaveToFile
 
 	cmdFilter := cmd.Find("filter")
 	for _, v := range filterChilds {
+		switch v.Name {
+		case "dstip":
+			v.Run = wfc.FilterDstIp
+		case "hostname":
+			v.Run = wfc.FilterHostname
+		case "month":
+			v.Run = wfc.FilterMonth
+		case "reset":
+			v.Run = wfc.ResetFilters
+		case "srcip":
+			v.Run = wfc.FilterSrcIp
+		case "user":
+			v.Run = wfc.FilterUser
+		}
 		cmdFilter.AddChild(v)
 	}
-	cmdFilter.Find("month").Run = wfc.FilterMonth
-	cmdFilter.Find("reset").Run = wfc.ResetFilters
-	cmdFilter.Find("user").Run = wfc.FilterUser
+
+	cmdStatistics := cmd.Find("stats")
+	for _, v := range statisticsChilds {
+		switch v.Name {
+		case "trafficin":
+			v.Run = wfc.StatisticsTrafficIn
+		}
+		cmdStatistics.AddChild(v)
+	}
 }

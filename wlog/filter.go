@@ -38,6 +38,29 @@ func (wfc *WebFilterCommand) Filter(f func(WebFilter) bool) {
 	fmt.Printf(" done [%v  %d items]\n", time.Now().Sub(dt1), len(wfc.filter))
 }
 
+func (wfc *WebFilterCommand) FilterDstIp(cmd *gocli.Command, args []string) {
+	if len(args) != 1 {
+		fmt.Println("One destination IP must be specified")
+		return
+	}
+
+	wfc.Filter(func(wf WebFilter) bool {
+		return (strings.Index(wf.DestIP.String(), args[0]) == 0)
+	})
+}
+
+func (wfc *WebFilterCommand) FilterHostname(cmd *gocli.Command, args []string) {
+	if len(args) != 1 {
+		fmt.Println("One hostname must be specified")
+		return
+	}
+
+	hostname := strings.ToLower(args[0])
+	wfc.Filter(func(wf WebFilter) bool {
+		return (strings.Index(strings.ToLower(wf.Hostname), hostname) != -1)
+	})
+}
+
 func (wfc *WebFilterCommand) FilterMonth(cmd *gocli.Command, args []string) {
 	if len(args) != 2 {
 		fmt.Println("One month and year value must be specified")
@@ -65,6 +88,17 @@ func (wfc *WebFilterCommand) FilterMonth(cmd *gocli.Command, args []string) {
 
 	wfc.Filter(func(wf WebFilter) bool {
 		return (int(wf.Date.Month()) == month && wf.Date.Year() == year)
+	})
+}
+
+func (wfc *WebFilterCommand) FilterSrcIp(cmd *gocli.Command, args []string) {
+	if len(args) != 1 {
+		fmt.Println("One source IP must be specified")
+		return
+	}
+
+	wfc.Filter(func(wf WebFilter) bool {
+		return (strings.Index(wf.SourceIP.String(), args[0]) == 0)
 	})
 }
 

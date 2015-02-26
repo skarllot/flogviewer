@@ -33,9 +33,21 @@ var wlogChilds = gocli.Commands{
 		Name:  "save",
 		Short: "Saves current filtered data",
 	},
+	&gocli.Command{
+		Name:  "stats",
+		Short: "Run statistical analysis on filtered data",
+	},
 }
 
 var filterChilds = gocli.Commands{
+	&gocli.Command{
+		Name:  "dstip",
+		Short: "Filter logs to specified destination IP",
+	},
+	&gocli.Command{
+		Name:  "hostname",
+		Short: "Filter logs to specified hostname",
+	},
 	&gocli.Command{
 		Name:  "month",
 		Short: "Filter logs to specified month",
@@ -45,7 +57,18 @@ var filterChilds = gocli.Commands{
 		Short: "Reset all applied filters",
 	},
 	&gocli.Command{
+		Name:  "srcip",
+		Short: "Filter logs to specified source IP",
+	},
+	&gocli.Command{
 		Name:  "user",
 		Short: "Filter logs to specified user",
+	},
+}
+
+var statisticsChilds = gocli.Commands{
+	&gocli.Command{
+		Name:  "trafficin",
+		Short: "Group input traffic by domain",
 	},
 }

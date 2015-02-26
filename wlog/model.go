@@ -41,6 +41,8 @@ type WebFilter struct {
 	Profile      string `log:"profile"`
 	Status       string `log:"status"`
 	Url          string `log:"url"`
+	TrafficOut   uint64 `log:"sentbyte"`
+	TrafficIn    uint64 `log:"rcvdbyte"`
 	Message      string `log:"msg"`
 	CategoryId   int    `log:"cat"`
 	CategoryDesc string `log:"catdesc"`
