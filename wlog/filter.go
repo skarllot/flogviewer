@@ -19,9 +19,54 @@ package wlog
 import (
 	"fmt"
 	"github.com/skarllot/gocli"
+	"strconv"
 	"strings"
 	"time"
 )
+
+func (wfc *WebFilterCommand) Filter(f func(WebFilter) bool) {
+	dt1 := time.Now()
+	fmt.Print("Processing filter...")
+
+	result := make(WebFilterList, 0)
+	for _, v := range wfc.filter {
+		if f(v) {
+			result = append(result, v)
+		}
+	}
+	wfc.filter = result
+	fmt.Printf(" done [%v  %d items]\n", time.Now().Sub(dt1), len(wfc.filter))
+}
+
+func (wfc *WebFilterCommand) FilterMonth(cmd *gocli.Command, args []string) {
+	if len(args) != 2 {
+		fmt.Println("One month and year value must be specified")
+		return
+	}
+
+	month, err := strconv.Atoi(args[0])
+	if err != nil {
+		fmt.Println("The month value must be an integer")
+		return
+	}
+	if month < 1 || month > 12 {
+		fmt.Println("Invalid month value")
+		return
+	}
+	year, err := strconv.Atoi(args[1])
+	if err != nil {
+		fmt.Println("The year value must be an integer")
+		return
+	}
+	if year < 2000 {
+		fmt.Println("Invalid year value")
+		return
+	}
+
+	wfc.Filter(func(wf WebFilter) bool {
+		return (int(wf.Date.Month()) == month && wf.Date.Year() == year)
+	})
+}
 
 func (wfc *WebFilterCommand) FilterUser(cmd *gocli.Command, args []string) {
 	if len(args) != 1 {
@@ -29,18 +74,10 @@ func (wfc *WebFilterCommand) FilterUser(cmd *gocli.Command, args []string) {
 		return
 	}
 
-	dt1 := time.Now()
-	fmt.Print("Processing filter...")
-
-	result := make(WebFilterList, 0)
 	args[0] = strings.ToLower(args[0])
-	for _, v := range wfc.filter {
-		if strings.ToLower(v.User) == args[0] {
-			result = append(result, v)
-		}
-	}
-	wfc.filter = result
-	fmt.Printf(" done [%v  %d items]\n", time.Now().Sub(dt1), len(wfc.filter))
+	wfc.Filter(func(wf WebFilter) bool {
+		return (strings.ToLower(wf.User) == args[0])
+	})
 }
 
 func (wfc *WebFilterCommand) ResetFilters(cmd *gocli.Command, args []string) {

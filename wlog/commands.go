@@ -37,11 +37,15 @@ var wlogChilds = gocli.Commands{
 
 var filterChilds = gocli.Commands{
 	&gocli.Command{
-		Name:  "user",
-		Short: "Filter logs to specified user",
+		Name:  "month",
+		Short: "Filter logs to specified month",
 	},
 	&gocli.Command{
 		Name:  "reset",
 		Short: "Reset all applied filters",
+	},
+	&gocli.Command{
+		Name:  "user",
+		Short: "Filter logs to specified user",
 	},
 }
