@@ -27,19 +27,28 @@ import (
 )
 
 type WebFilterCommand struct {
-	list WebFilterList
+	list   WebFilterList
+	filter WebFilterList
 }
 
 func LoadWlog(cmd *gocli.Command) {
 	wfc := &WebFilterCommand{
-		list: make(WebFilterList, 0),
+		list:   make(WebFilterList, 0),
+		filter: make(WebFilterList, 0),
 	}
 
 	for _, v := range wlogChilds {
 		cmd.AddChild(v)
 	}
-
 	cmd.Find("load").Run = wfc.LoadFile
+	cmd.Find("save").Run = wfc.SaveToFile
+
+	cmdFilter := cmd.Find("filter")
+	for _, v := range filterChilds {
+		cmdFilter.AddChild(v)
+	}
+	cmdFilter.Find("user").Run = wfc.FilterUser
+	cmdFilter.Find("reset").Run = wfc.ResetFilters
 }
 
 func (wfc *WebFilterCommand) LoadFile(cmd *gocli.Command, args []string) {
@@ -76,11 +85,40 @@ func (wfc *WebFilterCommand) LoadFile(cmd *gocli.Command, args []string) {
 
 	dt1 := time.Now()
 	fmt.Print("Parsing logs...")
-	wfc.list = ParseFile(reader)
+	wfc.list = append(wfc.list, ParseFile(reader)...)
 	if err != nil {
 		fmt.Println(" error")
 		fmt.Println(err)
 		return
 	}
+
+	wfc.filter = wfc.list
 	fmt.Printf(" done [%v  %d items]\n", time.Now().Sub(dt1), len(wfc.list))
+}
+
+func (wfc *WebFilterCommand) SaveToFile(cmd *gocli.Command, args []string) {
+	args = common.ParseParameters(args)
+	if len(args) != 1 {
+		fmt.Println("One file name must be defined")
+		return
+	}
+
+	file, err := os.Create(args[0])
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer file.Close()
+
+	file.WriteString("Date;Device;Level;PolicyId;User;SourceIP;SourceIf;" +
+		"DestIP;DestPort;DestIf;Service;Hostname;Profile;Status;Url;Message;" +
+		"CategoryId;CategoryDesc\n")
+	for _, v := range wfc.filter {
+		file.WriteString(fmt.Sprintf("%v;%v;%v;%v;%v;%v;%v;%v;%v;%v;%v;%v;%v;"+
+			"%v;%v;%v;%v;%v\n", v.Date, v.Device, v.LogLevel, v.PolicyId, v.User,
+			v.SourceIP, v.SourceIf, v.DestIP, v.DestPort, v.DestIf, v.Service,
+			v.Hostname, v.Profile, v.Status, v.Url, v.Message, v.CategoryId,
+			v.CategoryDesc))
+	}
+	file.Sync()
 }

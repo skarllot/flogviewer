@@ -22,7 +22,26 @@ import (
 
 var wlogChilds = gocli.Commands{
 	&gocli.Command{
+		Name:  "filter",
+		Short: "Apply filters to current loaded logs",
+	},
+	&gocli.Command{
 		Name:  "load",
 		Short: "Load specified log file into memory",
+	},
+	&gocli.Command{
+		Name:  "save",
+		Short: "Saves current filtered data",
+	},
+}
+
+var filterChilds = gocli.Commands{
+	&gocli.Command{
+		Name:  "user",
+		Short: "Filter logs to specified user",
+	},
+	&gocli.Command{
+		Name:  "reset",
+		Short: "Reset all applied filters",
 	},
 }
