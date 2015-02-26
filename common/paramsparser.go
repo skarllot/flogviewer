@@ -14,21 +14,38 @@
 * limitations under the License.
  */
 
-package main
+package common
 
 import (
-	"github.com/skarllot/flogviewer/wlog"
-	"github.com/skarllot/gocli"
+	"regexp"
+	"strings"
 )
 
-var rootCmd = &gocli.Command{
-	Name: "flogviewer",
+const (
+	PARAMETERS_PATTERN = `"((?:[^"]|\")*)"|(\S+)`
+)
+
+var rParam *regexp.Regexp
+
+func init() {
+	rParam, _ = regexp.Compile(PARAMETERS_PATTERN)
 }
 
-var rootChilds = gocli.Commands{
-	&gocli.Command{
-		Name:  "wlog",
-		Short: "Web Filter",
-		Load:  wlog.LoadWlog,
-	},
+func ParseParameters(args []string) []string {
+	strArgs := strings.Join(args, " ")
+	matches := rLine.FindAllStringSubmatch(strArgs, -1)
+	if matches == nil {
+		return args
+	}
+
+	retArgs := make([]string, 0)
+	for _, m := range matches {
+		if len(m[1]) > 0 {
+			retArgs = append(retArgs, m[1])
+		} else {
+			retArgs = append(retArgs, m[2])
+		}
+	}
+
+	return retArgs
 }

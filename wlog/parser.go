@@ -19,19 +19,13 @@ package wlog
 import (
 	"bufio"
 	"github.com/skarllot/flogviewer/common"
-	"os"
+	"io"
 )
 
-func ParseFile(fname string) WebFilterList {
+func ParseFile(r io.Reader) WebFilterList {
 	result := make(WebFilterList, 0)
 
-	file, err := os.Open(fname)
-	if err != nil {
-		return result
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(r)
 	c := make(chan *WebFilter)
 	count := 0
 	for scanner.Scan() {

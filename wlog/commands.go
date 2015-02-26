@@ -14,21 +14,15 @@
 * limitations under the License.
  */
 
-package main
+package wlog
 
 import (
-	"github.com/skarllot/flogviewer/wlog"
 	"github.com/skarllot/gocli"
 )
 
-var rootCmd = &gocli.Command{
-	Name: "flogviewer",
-}
-
-var rootChilds = gocli.Commands{
+var wlogChilds = gocli.Commands{
 	&gocli.Command{
-		Name:  "wlog",
-		Short: "Web Filter",
-		Load:  wlog.LoadWlog,
+		Name:  "load",
+		Short: "Load specified log file into memory",
 	},
 }
