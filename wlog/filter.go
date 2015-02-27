@@ -114,6 +114,24 @@ func (wfc *WebFilterCommand) FilterSrcIp(cmd *gocli.Command, args []string) {
 	})
 }
 
+func (wfc *WebFilterCommand) FilterStatus(cmd *gocli.Command, args []string) {
+	if len(args) < 1 || len(args) > 2 {
+		fmt.Println("One status must be specified, with optional not")
+		fmt.Println("[not] <status>")
+		return
+	}
+
+	status := strings.ToLower(args[0])
+	isnot := len(args) == 2 && strings.ToLower(args[1]) == "not"
+	wfc.Filter(func(wf WebFilter) bool {
+		if !isnot {
+			return (strings.Index(strings.ToLower(wf.Status), status) == 0)
+		} else {
+			return (strings.Index(strings.ToLower(wf.Status), status) == -1)
+		}
+	})
+}
+
 func (wfc *WebFilterCommand) FilterUser(cmd *gocli.Command, args []string) {
 	if len(args) != 1 {
 		fmt.Println("One user name must be specified")

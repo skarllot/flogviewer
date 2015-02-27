@@ -56,6 +56,8 @@ func LoadWlog(cmd *gocli.Command) {
 			v.Run = wfc.ResetFilters
 		case "srcip":
 			v.Run = wfc.FilterSrcIp
+		case "status":
+			v.Run = wfc.FilterStatus
 		case "user":
 			v.Run = wfc.FilterUser
 		}
@@ -65,6 +67,8 @@ func LoadWlog(cmd *gocli.Command) {
 	cmdStatistics := cmd.Find("stats")
 	for _, v := range statsChilds {
 		switch v.Name {
+		case "hits":
+			v.Run = wfc.StatsHits
 		case "trafficin":
 			v.Run = wfc.StatsTrafficIn
 		}

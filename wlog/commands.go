@@ -65,6 +65,10 @@ var filterChilds = gocli.Commands{
 		Short: "Filter logs to specified source IP",
 	},
 	&gocli.Command{
+		Name:  "status",
+		Short: "Filter logs to specified status",
+	},
+	&gocli.Command{
 		Name:  "user",
 		Short: "Filter logs to specified user",
 	},
@@ -72,7 +76,11 @@ var filterChilds = gocli.Commands{
 
 var statsChilds = gocli.Commands{
 	&gocli.Command{
+		Name:  "hits",
+		Short: "Group hits by specified target",
+	},
+	&gocli.Command{
 		Name:  "trafficin",
-		Short: "Group input traffic by domain",
+		Short: "Group input traffic by specified target",
 	},
 }

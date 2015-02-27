@@ -34,10 +34,55 @@ type TrafficInStats struct {
 
 type TrafficInStatsList []TrafficInStats
 
-func (wfc *WebFilterCommand) statisticsTrafficIn(
+type HitsStats struct {
+	Target string
+	Hits   int
+}
+
+type HitsStatsList []HitsStats
+
+func (wfc *WebFilterCommand) statisticsHits(
 	columnName string,
 	fname string,
 	f func(*WebFilter) string) {
+	list := make(map[string]HitsStats, 0)
+	for _, v := range wfc.filter {
+		target := strings.ToLower(f(&v))
+		wf, ok := list[target]
+		if !ok {
+			list[target] = HitsStats{
+				Target: target,
+				Hits:   1,
+			}
+		} else {
+			wf.Hits += 1
+			list[target] = wf
+		}
+	}
+
+	result := make(HitsStatsList, 0, len(list))
+	for _, v := range list {
+		result = append(result, v)
+	}
+	sort.Sort(sort.Reverse(result))
+
+	file, err := os.Create(fname)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer file.Close()
+
+	file.WriteString(columnName + ";Hits\n")
+	for _, v := range result {
+		file.WriteString(fmt.Sprintf(
+			"\"%v\";\"%v\"\n", v.Target, v.Hits))
+	}
+	file.Sync()
+}
+
+func (wfc *WebFilterCommand) statisticsTrafficIn(
+	columnName string, fname string, f func(*WebFilter) string) {
 	list := make(map[string]TrafficInStats, 0)
 	for _, v := range wfc.filter {
 		target := strings.ToLower(f(&v))
@@ -105,6 +150,35 @@ func (wfc *WebFilterCommand) StatsTrafficIn(cmd *gocli.Command, args []string) {
 	}
 }
 
+func (wfc *WebFilterCommand) StatsHits(cmd *gocli.Command, args []string) {
+	args = common.ParseParameters(args)
+	if len(args) != 2 {
+		fmt.Println("Two parameters must be defined")
+		fmt.Println("<category|hostname|user> <path>")
+		return
+	}
+
+	option := strings.ToLower(args[0])
+	switch option {
+	case "category":
+		wfc.statisticsHits("Category", args[1],
+			func(wf *WebFilter) string { return wf.CategoryDesc })
+	case "hostname":
+		wfc.statisticsHits("Hostname", args[1],
+			func(wf *WebFilter) string { return wf.Hostname })
+	case "user":
+		wfc.statisticsHits("User", args[1],
+			func(wf *WebFilter) string { return wf.User })
+	default:
+		fmt.Println("Invalid option. Must be category, hostname or user.")
+		return
+	}
+}
+
 func (a TrafficInStatsList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a TrafficInStatsList) Len() int           { return len(a) }
 func (a TrafficInStatsList) Less(i, j int) bool { return a[i].TrafficIn < a[j].TrafficIn }
+
+func (a HitsStatsList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a HitsStatsList) Len() int           { return len(a) }
+func (a HitsStatsList) Less(i, j int) bool { return a[i].Hits < a[j].Hits }
