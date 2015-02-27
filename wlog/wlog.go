@@ -44,6 +44,8 @@ func LoadWlog(cmd *gocli.Command) {
 	cmdFilter := cmd.Find("filter")
 	for _, v := range filterChilds {
 		switch v.Name {
+		case "category":
+			v.Run = wfc.FilterCategory
 		case "dstip":
 			v.Run = wfc.FilterDstIp
 		case "hostname":
@@ -61,10 +63,10 @@ func LoadWlog(cmd *gocli.Command) {
 	}
 
 	cmdStatistics := cmd.Find("stats")
-	for _, v := range statisticsChilds {
+	for _, v := range statsChilds {
 		switch v.Name {
 		case "trafficin":
-			v.Run = wfc.StatisticsTrafficIn
+			v.Run = wfc.StatsTrafficIn
 		}
 		cmdStatistics.AddChild(v)
 	}

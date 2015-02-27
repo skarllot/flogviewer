@@ -41,6 +41,10 @@ var wlogChilds = gocli.Commands{
 
 var filterChilds = gocli.Commands{
 	&gocli.Command{
+		Name:  "category",
+		Short: "Filter logs to specified category",
+	},
+	&gocli.Command{
 		Name:  "dstip",
 		Short: "Filter logs to specified destination IP",
 	},
@@ -66,7 +70,7 @@ var filterChilds = gocli.Commands{
 	},
 }
 
-var statisticsChilds = gocli.Commands{
+var statsChilds = gocli.Commands{
 	&gocli.Command{
 		Name:  "trafficin",
 		Short: "Group input traffic by domain",

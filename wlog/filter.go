@@ -38,6 +38,18 @@ func (wfc *WebFilterCommand) Filter(f func(WebFilter) bool) {
 	fmt.Printf(" done [%v  %d items]\n", time.Now().Sub(dt1), len(wfc.filter))
 }
 
+func (wfc *WebFilterCommand) FilterCategory(cmd *gocli.Command, args []string) {
+	if len(args) != 1 {
+		fmt.Println("One category must be specified")
+		return
+	}
+
+	catdesc := strings.ToLower(args[0])
+	wfc.Filter(func(wf WebFilter) bool {
+		return (strings.Index(strings.ToLower(wf.CategoryDesc), catdesc) != -1)
+	})
+}
+
 func (wfc *WebFilterCommand) FilterDstIp(cmd *gocli.Command, args []string) {
 	if len(args) != 1 {
 		fmt.Println("One destination IP must be specified")
