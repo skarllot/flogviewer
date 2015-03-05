@@ -29,10 +29,6 @@ type Device struct {
 func DefineDeviceTable(dbm *gorp.DbMap) {
 	t := dbm.AddTableWithName(Device{}, "device")
 	t.SetKeys(true, "id")
-	t.ColMap("name").
-		SetNotNull(true)
-	t.ColMap("serial").
-		SetMaxSize(16).
-		SetNotNull(true).
-		SetUnique(true)
+	t.ColMap("name").SetNotNull(true)
+	t.ColMap("serial").SetMaxSize(16).SetNotNull(true).SetUnique(true)
 }

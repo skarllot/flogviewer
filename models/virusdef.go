@@ -20,13 +20,13 @@ import (
 	"github.com/go-gorp/gorp"
 )
 
-type Category struct {
-	Id          int64  `db:"id"`
-	Description string `db:"description"`
+type VirusDef struct {
+	Id   int64  `db:"id"`
+	Name string `db:"name"`
 }
 
-func DefineCategoryTable(dbm *gorp.DbMap) {
-	t := dbm.AddTableWithName(Category{}, "category")
+func DefineVirusdefTable(dbm *gorp.DbMap) {
+	t := dbm.AddTableWithName(VirusDef{}, "virusdef")
 	t.SetKeys(true, "id")
-	t.ColMap("description").SetNotNull(true)
+	t.ColMap("name").SetNotNull(true)
 }

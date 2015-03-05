@@ -50,20 +50,11 @@ type Log struct {
 func DefineLogTable(dbm *gorp.DbMap) {
 	t := dbm.AddTableWithName(Log{}, "log")
 	t.SetKeys(true, "id")
-	t.ColMap("logtype").SetNotNull(true)
-	t.ColMap("device").SetNotNull(true)
-	t.ColMap("level").SetNotNull(true)
-	t.ColMap("user").SetNotNull(true)
-	t.ColMap("service").SetNotNull(true)
-	t.ColMap("date").SetNotNull(true)
-	t.ColMap("policy_id").SetNotNull(true)
+	SetNotNull(t,
+		"logtype", "device", "level", "user", "service", "date", "policy_id",
+		"source_if", "dest_port", "dest_if", "sent_byte", "received_byte")
 	t.ColMap("source_ip").SetMaxSize(45).SetNotNull(true)
-	t.ColMap("source_if").SetNotNull(true)
 	t.ColMap("dest_ip").SetMaxSize(45).SetNotNull(true)
-	t.ColMap("dest_port").SetNotNull(true)
-	t.ColMap("dest_if").SetNotNull(true)
-	t.ColMap("sent_byte").SetNotNull(true)
-	t.ColMap("received_byte").SetNotNull(true)
 	t.ColMap("message").SetMaxSize(255)
 }
 

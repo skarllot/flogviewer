@@ -33,3 +33,9 @@ func CountRows(tableName, columnName string, txn *gorp.Transaction) (int64, erro
 
 	return count, nil
 }
+
+func SetNotNull(cm *gorp.TableMap, colName ...string) {
+	for _, n := range colName {
+		cm.ColMap(n).SetNotNull(true)
+	}
+}
