@@ -23,12 +23,13 @@ import (
 
 var rootCmd = &gocli.Command{
 	Name: "flogviewer",
+	Help: "Application to parse, filter and view Fortigate log files",
 }
 
 var rootChilds = gocli.Commands{
 	&gocli.Command{
-		Name:  "wlog",
-		Short: "Web Filter",
-		Load:  wlog.LoadWlog,
+		Name: "wlog",
+		Help: "Web Filter",
+		Load: wlog.LoadWlog,
 	},
 }

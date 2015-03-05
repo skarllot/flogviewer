@@ -22,65 +22,65 @@ import (
 
 var wlogChilds = gocli.Commands{
 	&gocli.Command{
-		Name:  "filter",
-		Short: "Apply filters to current loaded logs",
+		Name: "filter",
+		Help: "Apply filters to current loaded logs",
 	},
 	&gocli.Command{
-		Name:  "load",
-		Short: "Load specified log file into memory",
+		Name: "load",
+		Help: "Load specified log file into memory",
 	},
 	&gocli.Command{
-		Name:  "save",
-		Short: "Saves current filtered data",
+		Name: "save",
+		Help: "Saves current filtered data",
 	},
 	&gocli.Command{
-		Name:  "stats",
-		Short: "Run statistical analysis on filtered data",
+		Name: "stats",
+		Help: "Run statistical analysis on filtered data",
 	},
 }
 
 var filterChilds = gocli.Commands{
 	&gocli.Command{
-		Name:  "category",
-		Short: "Filter logs to specified category",
+		Name: "category",
+		Help: "Filter logs to specified category",
 	},
 	&gocli.Command{
-		Name:  "dstip",
-		Short: "Filter logs to specified destination IP",
+		Name: "dstip",
+		Help: "Filter logs to specified destination IP",
 	},
 	&gocli.Command{
-		Name:  "hostname",
-		Short: "Filter logs to specified hostname",
+		Name: "hostname",
+		Help: "Filter logs to specified hostname",
 	},
 	&gocli.Command{
-		Name:  "month",
-		Short: "Filter logs to specified month",
+		Name: "month",
+		Help: "Filter logs to specified month",
 	},
 	&gocli.Command{
-		Name:  "reset",
-		Short: "Reset all applied filters",
+		Name: "reset",
+		Help: "Reset all applied filters",
 	},
 	&gocli.Command{
-		Name:  "srcip",
-		Short: "Filter logs to specified source IP",
+		Name: "srcip",
+		Help: "Filter logs to specified source IP",
 	},
 	&gocli.Command{
-		Name:  "status",
-		Short: "Filter logs to specified status",
+		Name: "status",
+		Help: "Filter logs to specified status",
 	},
 	&gocli.Command{
-		Name:  "user",
-		Short: "Filter logs to specified user",
+		Name: "user",
+		Help: "Filter logs to specified user",
 	},
 }
 
 var statsChilds = gocli.Commands{
 	&gocli.Command{
-		Name:  "hits",
-		Short: "Group hits by specified target",
+		Name: "hits",
+		Help: "Group hits by specified target",
 	},
 	&gocli.Command{
-		Name:  "trafficin",
-		Short: "Group input traffic by specified target",
+		Name: "trafficin",
+		Help: "Group input traffic by specified target",
 	},
 }
