@@ -18,13 +18,26 @@ package main
 
 import (
 	"fmt"
+	"github.com/skarllot/flogviewer/bll"
 	"runtime"
 )
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	for _, v := range rootChilds {
+	cfg := bll.Configuration{}
+	if err := cfg.Load("flogviewer.gcfg"); err != nil {
+		fmt.Println("Could not load configuration file:", err)
+		return
+	}
+
+	dbm, err := cfg.CreateDbMap()
+	if err != nil {
+		fmt.Println("Could not initialize database:", err)
+		return
+	}
+
+	for _, v := range RootChilds(dbm) {
 		rootCmd.AddChild(v)
 	}
 

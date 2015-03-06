@@ -1,0 +1,6 @@
+[Database]
+engine=mysql
+host=localhost
+name=flogviewer
+user=flogviewer
+password=3hC8MSQHsZQabbyy

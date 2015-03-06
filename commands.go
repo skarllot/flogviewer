@@ -17,6 +17,7 @@
 package main
 
 import (
+	"github.com/go-gorp/gorp"
 	"github.com/skarllot/flogviewer/wlog"
 	"github.com/skarllot/gocli"
 )
@@ -26,10 +27,14 @@ var rootCmd = &gocli.Command{
 	Help: "Application to parse, filter and view Fortigate log files",
 }
 
-var rootChilds = gocli.Commands{
-	&gocli.Command{
-		Name: "wlog",
-		Help: "Web Filter",
-		Load: wlog.LoadWlog,
-	},
+func RootChilds(dbm *gorp.DbMap) gocli.Commands {
+	w := wlog.NewWebFilterCommand(dbm)
+
+	return gocli.Commands{
+		&gocli.Command{
+			Name: "wlog",
+			Help: "Web Filter",
+			Load: w.LoadWlog,
+		},
+	}
 }

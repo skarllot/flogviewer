@@ -17,26 +17,31 @@
 package wlog
 
 import (
+	"github.com/go-gorp/gorp"
 	"github.com/skarllot/gocli"
 )
 
 type WebFilterCommand struct {
+	Dbm    *gorp.DbMap
 	list   WebFilterList
 	filter WebFilterList
 }
 
-func LoadWlog(cmd *gocli.Command) {
-	wfc := &WebFilterCommand{
+func NewWebFilterCommand(dbm *gorp.DbMap) *WebFilterCommand {
+	return &WebFilterCommand{
+		Dbm:    dbm,
 		list:   make(WebFilterList, 0),
 		filter: make(WebFilterList, 0),
 	}
+}
 
+func (self *WebFilterCommand) LoadWlog(cmd *gocli.Command) {
 	for _, v := range wlogChilds {
 		switch v.Name {
 		case "load":
-			v.Run = wfc.Load
+			v.Run = self.Load
 		case "save":
-			v.Run = wfc.SaveToFile
+			v.Run = self.SaveToFile
 		}
 		cmd.AddChild(v)
 	}
@@ -45,21 +50,21 @@ func LoadWlog(cmd *gocli.Command) {
 	for _, v := range filterChilds {
 		switch v.Name {
 		case "category":
-			v.Run = wfc.FilterCategory
+			v.Run = self.FilterCategory
 		case "dstip":
-			v.Run = wfc.FilterDstIp
+			v.Run = self.FilterDstIp
 		case "hostname":
-			v.Run = wfc.FilterHostname
+			v.Run = self.FilterHostname
 		case "month":
-			v.Run = wfc.FilterMonth
+			v.Run = self.FilterMonth
 		case "reset":
-			v.Run = wfc.ResetFilters
+			v.Run = self.ResetFilters
 		case "srcip":
-			v.Run = wfc.FilterSrcIp
+			v.Run = self.FilterSrcIp
 		case "status":
-			v.Run = wfc.FilterStatus
+			v.Run = self.FilterStatus
 		case "user":
-			v.Run = wfc.FilterUser
+			v.Run = self.FilterUser
 		}
 		cmdFilter.AddChild(v)
 	}
@@ -68,9 +73,9 @@ func LoadWlog(cmd *gocli.Command) {
 	for _, v := range statsChilds {
 		switch v.Name {
 		case "hits":
-			v.Run = wfc.StatsHits
+			v.Run = self.StatsHits
 		case "trafficin":
-			v.Run = wfc.StatsTrafficIn
+			v.Run = self.StatsTrafficIn
 		}
 		cmdStatistics.AddChild(v)
 	}
