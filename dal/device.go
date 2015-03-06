@@ -14,25 +14,32 @@
 * limitations under the License.
  */
 
-package models
+package dal
 
 import (
 	"github.com/go-gorp/gorp"
+	"github.com/skarllot/flogviewer/models"
 )
 
-type LogType struct {
-	Id     int64  `db:"id"`
-	Level1 string `db:"level1"`
-	Level2 string `db:"level2"`
-}
+const (
+	SQL_DEVICE_BYSERIAL = `SELECT id, name, serial
+	FROM device
+	WHERE serial = :serial`
+)
 
-func DefineLogtypeTable(dbm *gorp.DbMap) {
-	t := dbm.AddTableWithName(LogType{}, "logtype")
-	t.SetKeys(true, "id")
-	t.ColMap("level1").
-		SetMaxSize(45).
-		SetNotNull(true)
-	t.ColMap("level2").
-		SetMaxSize(45).
-		SetNotNull(true)
+func GetDeviceBySerial(txn *gorp.Transaction, serial string) (*models.Device, error) {
+	qrows := make([]models.Device, 0)
+
+	_, err := txn.Select(&qrows, SQL_DEVICE_BYSERIAL, map[string]interface{}{
+		"serial": serial,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(qrows) != 1 {
+		return nil, nil
+	}
+
+	return &qrows[0], nil
 }

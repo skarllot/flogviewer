@@ -30,5 +30,6 @@ func DefineUserTable(dbm *gorp.DbMap) {
 	t.SetKeys(true, "id")
 	t.ColMap("name").
 		SetMaxSize(45).
+		SetUnique(true).
 		SetNotNull(true)
 }

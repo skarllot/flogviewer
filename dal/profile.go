@@ -14,25 +14,31 @@
 * limitations under the License.
  */
 
-package models
+package dal
 
 import (
 	"github.com/go-gorp/gorp"
+	"github.com/skarllot/flogviewer/models"
 )
 
-type LogType struct {
-	Id     int64  `db:"id"`
-	Level1 string `db:"level1"`
-	Level2 string `db:"level2"`
-}
+const (
+	SQL_PROFILE_BYNAME = `SELECT id, name
+	FROM profile
+	WHERE name = :name`
+)
 
-func DefineLogtypeTable(dbm *gorp.DbMap) {
-	t := dbm.AddTableWithName(LogType{}, "logtype")
-	t.SetKeys(true, "id")
-	t.ColMap("level1").
-		SetMaxSize(45).
-		SetNotNull(true)
-	t.ColMap("level2").
-		SetMaxSize(45).
-		SetNotNull(true)
+func GetProfileByName(txn *gorp.Transaction, name string) (*models.Profile, error) {
+	qrows := make([]models.Profile, 0)
+
+	_, err := txn.Select(&qrows, SQL_PROFILE_BYNAME, map[string]interface{}{
+		"name": name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(qrows) != 1 {
+		return nil, nil
+	}
+
+	return &qrows[0], nil
 }

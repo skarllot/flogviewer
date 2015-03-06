@@ -18,7 +18,9 @@ package wlog
 
 import (
 	"compress/gzip"
+	"errors"
 	"fmt"
+	"github.com/go-gorp/gorp"
 	"github.com/skarllot/flogviewer/common"
 	"github.com/skarllot/gocli"
 	"io"
@@ -38,14 +40,20 @@ func (wfc *WebFilterCommand) Load(cmd *gocli.Command, args []string) {
 	}
 
 	dt1 := time.Now()
+	done := false
+	var err error
 	fmt.Print("Parsing logs...")
+	defer func() {
+		if !done {
+			fmt.Println(" error")
+			fmt.Println(err)
+		}
+	}()
 
 	switch args[0] {
 	case "dir":
 		files, err := ioutil.ReadDir(args[1])
 		if err != nil {
-			fmt.Println(" error")
-			fmt.Println(err)
 			return
 		}
 		for _, f := range files {
@@ -54,30 +62,26 @@ func (wfc *WebFilterCommand) Load(cmd *gocli.Command, args []string) {
 				strings.Index(fname, "wlog") == -1 {
 				continue
 			}
-			err = wfc.LoadFile(fname)
+			err = wfc.LoadFile(fname, wfc.Dbm)
 			if err != nil {
-				fmt.Println(" error")
-				fmt.Println(err)
 				return
 			}
 		}
 	case "file":
-		if err := wfc.LoadFile(args[1]); err != nil {
-			fmt.Println(" error")
-			fmt.Println(err)
+		if err := wfc.LoadFile(args[1], wfc.Dbm); err != nil {
 			return
 		}
 	default:
-		fmt.Println(" error")
-		fmt.Println("You must choose between dir and file")
+		err = errors.New("You must choose between dir and file")
 		return
 	}
 
 	wfc.filter = wfc.list
+	done = true
 	fmt.Printf(" done [%v  %d items]\n", time.Now().Sub(dt1), len(wfc.list))
 }
 
-func (wfc *WebFilterCommand) LoadFile(fname string) error {
+func (wfc *WebFilterCommand) LoadFile(fname string, dbm *gorp.DbMap) error {
 	var reader io.Reader
 	file, err := os.Open(fname)
 	if err != nil {
@@ -92,7 +96,7 @@ func (wfc *WebFilterCommand) LoadFile(fname string) error {
 	defer gz.Close()
 	reader = gz
 
-	wfc.list = append(wfc.list, ParseFile(reader)...)
+	err = ParseFile(reader, dbm)
 	if err != nil {
 		return err
 	}

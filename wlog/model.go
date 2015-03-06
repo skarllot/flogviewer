@@ -26,6 +26,9 @@ type WebFilter struct {
 	DateStr      string `log:"date"`
 	TimeStr      string `log:"time"`
 	Device       string `log:"devname"`
+	DeviceSerial string `log:"devid"`
+	LogType      string `log:"type"`
+	LogSubType   string `log:"subtype"`
 	LogLevel     string `log:"level"`
 	PolicyId     int    `log:"policyid"`
 	User         string `log:"user"`
