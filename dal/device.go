@@ -43,3 +43,24 @@ func GetDeviceBySerial(txn *gorp.Transaction, serial string) (*models.Device, er
 
 	return &qrows[0], nil
 }
+
+func GetOrInsertDeviceBySerial(
+	txn *gorp.Transaction,
+	serial, device string) (*models.Device, error) {
+
+	row, err := GetOrInsertByUnique(txn, SQL_DEVICE_BYSERIAL,
+		&[]*models.Device{},
+		map[string]interface{}{
+			"serial": serial,
+		}, func() interface{} {
+			return &models.Device{
+				Name:   device,
+				Serial: serial,
+			}
+		})
+
+	if err != nil {
+		return nil, err
+	}
+	return row.(*models.Device), nil
+}

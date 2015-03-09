@@ -27,7 +27,6 @@ type WebFilter struct {
 	CategoryId int64  `db:"category"`
 	Host       string `db:"host"`
 	Url        string `db:"url"`
-	Message    string `db:"message"`
 
 	Log      *Log       `db:"-"`
 	Profile  *Profile   `db:"-"`
@@ -43,8 +42,6 @@ func DefineWebfilterTable(dbm *gorp.DbMap) {
 		SetNotNull(true)
 	t.ColMap("url").
 		SetMaxSize(2048).
-		SetNotNull(true)
-	t.ColMap("message").
 		SetNotNull(true)
 }
 

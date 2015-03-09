@@ -21,14 +21,17 @@ import (
 )
 
 func defineAllTables(dbm *gorp.DbMap) {
-	DefineDeviceTable(dbm)
-	DefineLogtypeTable(dbm)
-	DefineUserTable(dbm)
-	DefineLoglevelTable(dbm)
-	DefineServiceTable(dbm)
-	DefineProfileTable(dbm)
 	DefineCategoryTable(dbm)
+	DefineDeviceTable(dbm)
+	DefineLogTable(dbm)
+	DefineLoglevelTable(dbm)
+	DefineLogtypeTable(dbm)
+	DefineProfileTable(dbm)
+	DefineServiceTable(dbm)
+	DefineUserTable(dbm)
 	DefineUtmstatusTable(dbm)
+	DefineVirusTable(dbm)
+	DefineVirusdefTable(dbm)
 	DefineWebfilterTable(dbm)
 }
 

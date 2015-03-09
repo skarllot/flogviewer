@@ -18,32 +18,36 @@ package dal
 
 import (
 	"github.com/go-gorp/gorp"
+	"reflect"
 )
 
 func GetRowByUnique(
 	txn *gorp.Transaction,
 	query string,
+	qrows interface{},
 	unique map[string]interface{}) (interface{}, error) {
 
-	qrows, err := txn.Select(nil, query, unique)
+	_, err := txn.Select(qrows, query, unique)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(qrows) != 1 {
+	rowsSlice := MakeGenericSlice(qrows)
+	if len(rowsSlice) != 1 {
 		return nil, nil
 	}
 
-	return &qrows[0], nil
+	return rowsSlice[0], nil
 }
 
 func GetOrInsertByUnique(
 	txn *gorp.Transaction,
 	query string,
+	qrows interface{},
 	unique map[string]interface{},
 	insert func() interface{}) (interface{}, error) {
 
-	row, err := GetRowByUnique(txn, query, unique)
+	row, err := GetRowByUnique(txn, query, qrows, unique)
 	if err != nil {
 		return nil, err
 	}
@@ -57,4 +61,21 @@ func GetOrInsertByUnique(
 	}
 
 	return row, nil
+}
+
+func MakeGenericSlice(slice interface{}) []interface{} {
+	s := reflect.ValueOf(slice)
+	if s.Kind() == reflect.Ptr {
+		s = s.Elem()
+	}
+	if s.Kind() != reflect.Slice {
+		panic("InterfaceSlice() given a non-slice type")
+	}
+
+	ret := make([]interface{}, s.Len())
+	for i := 0; i < s.Len(); i++ {
+		ret[i] = s.Index(i).Interface()
+	}
+
+	return ret
 }

@@ -31,29 +31,14 @@ func GetUtmstatusByName(
 	txn *gorp.Transaction,
 	name string) (*models.UtmStatus, error) {
 
-	row, err := GetRowByUnique(txn, SQL_UTMSTATUS_BYNAME, map[string]interface{}{
-		"name": name,
-	})
+	row, err := GetRowByUnique(txn, SQL_UTMSTATUS_BYNAME,
+		&[]*models.UtmStatus{},
+		map[string]interface{}{
+			"name": name,
+		})
 
 	if err != nil {
 		return nil, err
 	}
 	return row.(*models.UtmStatus), err
-}
-
-func GetOrInsertUtmstatusByName(
-	txn *gorp.Transaction,
-	name string,
-	insert func() *models.UtmStatus) (*models.UtmStatus, error) {
-
-	row, err := GetOrInsertByUnique(txn, SQL_UTMSTATUS_BYNAME, map[string]interface{}{
-		"name": name,
-	}, func() interface{} {
-		return insert()
-	})
-
-	if err != nil {
-		return nil, err
-	}
-	return row.(*models.UtmStatus), nil
 }

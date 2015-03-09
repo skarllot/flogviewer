@@ -17,31 +17,57 @@
 package dal
 
 import (
+	"errors"
 	"github.com/go-gorp/gorp"
 	"github.com/skarllot/flogviewer/models"
 )
 
 const (
-	SQL_LOGLEVEL_BYDESC = `SELECT id, name
-	FROM loglevel
-	WHERE name = :name`
+	SQL_CATEGORY_BYNAME = `SELECT id, description
+	FROM category
+	WHERE description = :desc`
 )
 
-func GetLoglevelByName(
+func GetCategoryByDescription(
 	txn *gorp.Transaction,
-	name string) (*models.LogLevel, error) {
-	qrows := make([]models.LogLevel, 0)
+	desc string) (*models.Category, error) {
 
-	_, err := txn.Select(&qrows, SQL_LOGLEVEL_BYDESC, map[string]interface{}{
-		"name": name,
+	qrows := make([]models.Category, 0)
+
+	_, err := txn.Select(&qrows, SQL_CATEGORY_BYNAME, map[string]interface{}{
+		"desc": desc,
 	})
 	if err != nil {
 		return nil, err
 	}
-
 	if len(qrows) != 1 {
 		return nil, nil
 	}
 
 	return &qrows[0], nil
+}
+
+func GetOrInsertCategoryByDescription(
+	txn *gorp.Transaction,
+	desc string) (*models.Category, error) {
+
+	row, err := GetOrInsertByUnique(txn, SQL_CATEGORY_BYNAME,
+		&[]*models.Category{},
+		map[string]interface{}{
+			"desc": desc,
+		}, func() interface{} {
+			return &models.Category{
+				Description: desc,
+			}
+		})
+
+	if err != nil {
+		return nil, err
+	}
+	switch v := row.(type) {
+	case *models.Category:
+		return v, nil
+	default:
+		return nil, errors.New("Invalid type")
+	}
 }

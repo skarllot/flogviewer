@@ -46,3 +46,25 @@ func GetLogtypeByNames(
 
 	return &qrows[0], nil
 }
+
+func GetOrInsertLogtypeByNames(
+	txn *gorp.Transaction,
+	level1, level2 string) (*models.LogType, error) {
+
+	row, err := GetOrInsertByUnique(txn, SQL_LOGTYPE_BYNAME,
+		&[]*models.LogType{},
+		map[string]interface{}{
+			"level1": level1,
+			"level2": level2,
+		}, func() interface{} {
+			return &models.LogType{
+				Level1: level1,
+				Level2: level2,
+			}
+		})
+
+	if err != nil {
+		return nil, err
+	}
+	return row.(*models.LogType), nil
+}

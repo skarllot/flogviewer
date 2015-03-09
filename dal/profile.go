@@ -42,3 +42,23 @@ func GetProfileByName(txn *gorp.Transaction, name string) (*models.Profile, erro
 
 	return &qrows[0], nil
 }
+
+func GetOrInsertProfileByName(
+	txn *gorp.Transaction,
+	name string) (*models.Profile, error) {
+
+	row, err := GetOrInsertByUnique(txn, SQL_PROFILE_BYNAME,
+		&[]*models.Profile{},
+		map[string]interface{}{
+			"name": name,
+		}, func() interface{} {
+			return &models.Profile{
+				Name: name,
+			}
+		})
+
+	if err != nil {
+		return nil, err
+	}
+	return row.(*models.Profile), nil
+}

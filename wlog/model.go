@@ -30,7 +30,7 @@ type WebFilter struct {
 	LogType      string `log:"type"`
 	LogSubType   string `log:"subtype"`
 	LogLevel     string `log:"level"`
-	PolicyId     int    `log:"policyid"`
+	PolicyId     int64  `log:"policyid"`
 	User         string `log:"user"`
 	SourceIP     net.IP
 	SourceIPStr  string `log:"srcip"`

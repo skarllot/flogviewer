@@ -42,3 +42,23 @@ func GetServiceByName(txn *gorp.Transaction, name string) (*models.Service, erro
 
 	return &qrows[0], nil
 }
+
+func GetOrInsertServiceByName(
+	txn *gorp.Transaction,
+	name string) (*models.Service, error) {
+
+	row, err := GetOrInsertByUnique(txn, SQL_SERVICE_BYNAME,
+		&[]*models.Service{},
+		map[string]interface{}{
+			"name": name,
+		}, func() interface{} {
+			return &models.Service{
+				Name: name,
+			}
+		})
+
+	if err != nil {
+		return nil, err
+	}
+	return row.(*models.Service), nil
+}

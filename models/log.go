@@ -18,7 +18,6 @@ package models
 
 import (
 	"github.com/go-gorp/gorp"
-	"net"
 	"time"
 )
 
@@ -31,13 +30,13 @@ type Log struct {
 	ServiceId    int64     `db:"service"`
 	Date         time.Time `db:"date"`
 	PolicyId     int64     `db:"policy_id"`
-	SourceIp     net.IP    `db:"source_ip"`
+	SourceIp     string    `db:"source_ip"`
 	SourceIf     string    `db:"source_if"`
-	DestIp       net.IP    `db:"dest_ip"`
-	DestPort     int16     `db:"dest_port"`
+	DestIp       string    `db:"dest_ip"`
+	DestPort     uint16    `db:"dest_port"`
 	DestIf       string    `db:"dest_if"`
-	SentByte     int64     `db:"sent_byte"`
-	ReceivedByte int64     `db:"received_byte"`
+	SentByte     uint64    `db:"sent_byte"`
+	ReceivedByte uint64    `db:"received_byte"`
 	Message      *string   `db:"message"`
 
 	LogType *LogType  `db:"-"`

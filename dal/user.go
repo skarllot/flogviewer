@@ -42,3 +42,23 @@ func GetUserByName(txn *gorp.Transaction, name string) (*models.User, error) {
 
 	return &qrows[0], nil
 }
+
+func GetOrInsertUserByName(
+	txn *gorp.Transaction,
+	name string) (*models.User, error) {
+
+	row, err := GetOrInsertByUnique(txn, SQL_USER_BYNAME,
+		&[]*models.User{},
+		map[string]interface{}{
+			"name": name,
+		}, func() interface{} {
+			return &models.User{
+				Name: name,
+			}
+		})
+
+	if err != nil {
+		return nil, err
+	}
+	return row.(*models.User), nil
+}
