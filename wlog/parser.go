@@ -86,13 +86,19 @@ func ParseFile(r io.Reader, dbm *gorp.DbMap) error {
 	}
 
 	fmt.Print("Records inserted: ")
-	countRecords := 0
+	countRecords, lastPrintedCount := 0, 0
 	for i := 0; i < countBatch; i++ {
 		batchResult := <-chanBatch
 		if batchResult > 0 {
 			countRecords += batchResult
-			fmt.Printf("%d ", countRecords)
 		}
+		if countRecords >= lastPrintedCount+1000 {
+			fmt.Printf("%d ", countRecords)
+			lastPrintedCount = countRecords
+		}
+	}
+	if lastPrintedCount != countRecords {
+		fmt.Printf("%d", countRecords)
 	}
 	fmt.Println()
 
@@ -239,41 +245,52 @@ func (self *ParserBatch) InsertWebFilter(wf WebFilter, txn *gorp.Transaction) er
 }
 
 func (self *ParserBatch) ForeignTableGet() {
+	countOp := 0
+	txn, err := self.dbm.Begin()
+	if err != nil {
+		fmt.Println("Error begining transaction:", err)
+		return
+	}
+
 	for {
 		select {
 		case req := <-self.get:
 			var fResult interface{}
-			txn, err := self.dbm.Begin()
+			switch req[0] {
+			case "device":
+				fResult, err = dal.GetOrInsertDeviceBySerial(txn, req[1], req[2])
+			case "logtype":
+				fResult, err = dal.GetOrInsertLogtypeByNames(txn, req[1], req[2])
+			case "user":
+				fResult, err = dal.GetOrInsertUserByName(txn, req[1])
+			case "service":
+				fResult, err = dal.GetOrInsertServiceByName(txn, req[1])
+			case "profile":
+				fResult, err = dal.GetOrInsertProfileByName(txn, req[1])
+			case "category":
+				fResult, err = dal.GetOrInsertCategoryByDescription(txn, req[1])
+			default:
+				err = errors.New("Invalid foreign table name")
+			}
+
 			if err != nil {
 				self.response <- err
 			} else {
-				defer txn.Rollback()
-				switch req[0] {
-				case "device":
-					fResult, err = dal.GetOrInsertDeviceBySerial(txn, req[1], req[2])
-				case "logtype":
-					fResult, err = dal.GetOrInsertLogtypeByNames(txn, req[1], req[2])
-				case "user":
-					fResult, err = dal.GetOrInsertUserByName(txn, req[1])
-				case "service":
-					fResult, err = dal.GetOrInsertServiceByName(txn, req[1])
-				case "profile":
-					fResult, err = dal.GetOrInsertProfileByName(txn, req[1])
-				case "category":
-					fResult, err = dal.GetOrInsertCategoryByDescription(txn, req[1])
-				default:
-					err = errors.New("Invalid foreign table name")
-				}
+				self.response <- fResult
+			}
 
+			countOp++
+			if countOp >= PARSE_BATCH_SIZE {
+				txn.Commit()
+				txn, err = self.dbm.Begin()
 				if err != nil {
-					txn.Rollback()
-					self.response <- err
-				} else {
-					txn.Commit()
-					self.response <- fResult
+					fmt.Println("Error begining transaction:", err)
+					return
 				}
+				countOp = 0
 			}
 		case <-self.quit:
+			txn.Commit()
 			return
 		}
 	}
