@@ -30,6 +30,7 @@ func DefineLoglevelTable(dbm *gorp.DbMap) {
 	t.SetKeys(true, "id")
 	t.ColMap("name").
 		SetMaxSize(15).
+		SetUnique(true).
 		SetNotNull(true)
 }
 

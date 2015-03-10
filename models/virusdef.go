@@ -28,5 +28,7 @@ type VirusDef struct {
 func DefineVirusdefTable(dbm *gorp.DbMap) {
 	t := dbm.AddTableWithName(VirusDef{}, "virusdef")
 	t.SetKeys(true, "id")
-	t.ColMap("name").SetNotNull(true)
+	t.ColMap("name").
+		SetUnique(true).
+		SetNotNull(true)
 }

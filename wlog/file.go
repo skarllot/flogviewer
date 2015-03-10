@@ -42,10 +42,9 @@ func (wfc *WebFilterCommand) Load(cmd *gocli.Command, args []string) {
 	dt1 := time.Now()
 	done := false
 	var err error
-	fmt.Print("Parsing logs...")
 	defer func() {
 		if !done {
-			fmt.Println(" error")
+			fmt.Println("Parsing log files error")
 			fmt.Println(err)
 		}
 	}()
@@ -78,7 +77,7 @@ func (wfc *WebFilterCommand) Load(cmd *gocli.Command, args []string) {
 
 	wfc.filter = wfc.list
 	done = true
-	fmt.Printf(" done [%v  %d items]\n", time.Now().Sub(dt1), len(wfc.list))
+	fmt.Printf("Parsing log files done [%v  %d items]\n", time.Now().Sub(dt1), len(wfc.list))
 }
 
 func (wfc *WebFilterCommand) LoadFile(fname string, dbm *gorp.DbMap) error {

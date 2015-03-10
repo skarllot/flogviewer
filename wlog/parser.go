@@ -25,34 +25,78 @@ import (
 	"github.com/skarllot/flogviewer/dal"
 	"github.com/skarllot/flogviewer/models"
 	"io"
+	"strings"
 )
+
+const (
+	PARSE_BATCH_SIZE                 = 100
+	PARSE_CONNECTION_POOL            = 15
+	MYSQL_ERROR_TOO_MANY_CONNECTIONS = "1040"
+	MYSQL_ERROR_DUPLICATE_ENTRY      = "1062"
+	MYSQL_ERROR_DEADLOCK             = "1213"
+)
+
+type ParserBatch struct {
+	dbm      *gorp.DbMap
+	pool     chan interface{}
+	get      chan []string
+	response chan interface{}
+	quit     chan bool
+}
 
 func ParseFile(r io.Reader, dbm *gorp.DbMap) error {
 	scanner := bufio.NewScanner(r)
-	c := make(chan *WebFilter)
-	count := 0
-	defer close(c)
+	chanLine := make(chan *WebFilter)
+	countLines := 0
+	defer close(chanLine)
 	for scanner.Scan() {
-		go ParseLine(scanner.Text(), c)
-		count++
+		go ParseLine(scanner.Text(), chanLine)
+		countLines++
 	}
 
-	txn, err := dbm.Begin()
-	if err != nil {
-		return err
+	batch := make([]*WebFilter, 0, PARSE_BATCH_SIZE)
+	countBatch := 0
+	chanBatch := make(chan int)
+	batcher := &ParserBatch{
+		dbm:      dbm,
+		pool:     make(chan interface{}, PARSE_CONNECTION_POOL),
+		get:      make(chan []string),
+		response: make(chan interface{}),
+		quit:     make(chan bool),
 	}
+	for i := 0; i < PARSE_CONNECTION_POOL; i++ {
+		batcher.pool <- 0
+	}
+	go batcher.ForeignTableGet()
 
-	for i := 0; i < count; i++ {
-		item := <-c
+	for i := 0; i < countLines; i++ {
+		item := <-chanLine
 		if item != nil {
-			err = InsertWebFilter(*item, txn)
-			if err != nil {
-				fmt.Println("Error inserting new record:", err)
+			batch = append(batch, item)
+			if len(batch) == PARSE_BATCH_SIZE {
+				go batcher.InsertWebFilterList(batch, chanBatch)
+				countBatch++
+				batch = make([]*WebFilter, 0, PARSE_BATCH_SIZE)
 			}
 		}
 	}
-	txn.Commit()
+	if len(batch) > 0 {
+		go batcher.InsertWebFilterList(batch, chanBatch)
+		countBatch++
+	}
 
+	fmt.Print("Records inserted: ")
+	countRecords := 0
+	for i := 0; i < countBatch; i++ {
+		batchResult := <-chanBatch
+		if batchResult > 0 {
+			countRecords += batchResult
+			fmt.Printf("%d ", countRecords)
+		}
+	}
+	fmt.Println()
+
+	batcher.quit <- true
 	return nil
 }
 
@@ -67,35 +111,32 @@ func ParseLine(line string, c chan *WebFilter) {
 	c <- wf
 }
 
-func InsertWebFilter(wf WebFilter, txn *gorp.Transaction) error {
-	dev, err := dal.GetOrInsertDeviceBySerial(txn, wf.DeviceSerial, wf.Device)
-	if err != nil {
-		return err
-	}
+func (self *ParserBatch) InsertWebFilterList(list []*WebFilter, c chan<- int) {
+	lock := <-self.pool
+	defer func() { self.pool <- lock }()
 
-	logtype, err := dal.GetOrInsertLogtypeByNames(txn, wf.LogType, wf.LogSubType)
+	txn, err := self.dbm.Begin()
 	if err != nil {
-		return err
+		fmt.Println("Error begining transaction:", err)
+		c <- 0
+		return
 	}
+	defer txn.Rollback()
 
-	loglevel, err := dal.GetLoglevelByName(txn, wf.LogLevel)
-	if err != nil {
-		return err
+	insertCount := 0
+	for _, i := range list {
+		err = self.InsertWebFilter(*i, txn)
+		if err != nil {
+			fmt.Println("Error inserting new record:", err)
+		} else {
+			insertCount++
+		}
 	}
-	if loglevel == nil {
-		return errors.New("Invalid log level value: " + wf.LogLevel)
-	}
+	txn.Commit()
+	c <- insertCount
+}
 
-	user, err := dal.GetOrInsertUserByName(txn, wf.User)
-	if err != nil {
-		return err
-	}
-
-	service, err := dal.GetOrInsertServiceByName(txn, wf.Service)
-	if err != nil {
-		return err
-	}
-
+func (self *ParserBatch) InsertWebFilter(wf WebFilter, txn *gorp.Transaction) error {
 	message := wf.Message
 	log := &models.Log{
 		Date:         wf.Date,
@@ -108,52 +149,132 @@ func InsertWebFilter(wf WebFilter, txn *gorp.Transaction) error {
 		SentByte:     wf.TrafficOut,
 		ReceivedByte: wf.TrafficIn,
 		Message:      &message,
-		LogType:      logtype,
-		Device:       dev,
-		Level:        loglevel,
-		User:         user,
-		Service:      service,
 	}
-	err = txn.Insert(log)
-	if err != nil {
+
+	self.get <- []string{"device", wf.DeviceSerial, wf.Device}
+	fResult := <-self.response
+	switch t := fResult.(type) {
+	case *models.Device:
+		log.Device = t
+	case error:
+		return t
+	}
+
+	self.get <- []string{"logtype", wf.LogType, wf.LogSubType}
+	fResult = <-self.response
+	switch t := fResult.(type) {
+	case *models.LogType:
+		log.LogType = t
+	case error:
+		return t
+	}
+
+	if loglevel, err := dal.GetLoglevelByName(txn, wf.LogLevel); err != nil {
+		return err
+	} else if loglevel == nil {
+		return errors.New("Invalid log level value: " + wf.LogLevel)
+	} else {
+		log.Level = loglevel
+	}
+
+	self.get <- []string{"user", strings.ToLower(wf.User)}
+	fResult = <-self.response
+	switch t := fResult.(type) {
+	case *models.User:
+		log.User = t
+	case error:
+		return t
+	}
+
+	self.get <- []string{"service", wf.Service}
+	fResult = <-self.response
+	switch t := fResult.(type) {
+	case *models.Service:
+		log.Service = t
+	case error:
+		return t
+	}
+
+	if err := txn.Insert(log); err != nil {
 		return err
 	}
 
-	profile, err := dal.GetOrInsertProfileByName(txn, wf.Profile)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Done profile")
-	status, err := dal.GetUtmstatusByName(txn, wf.Status)
-	if err != nil {
-		return err
-	}
-	if status == nil {
-		return errors.New("Invalid UTM status value: " + wf.Status)
-	}
-
-	fmt.Println("Done utm status")
-	category, err := dal.GetOrInsertCategoryByDescription(txn, wf.CategoryDesc)
-	if err == nil {
-		return err
-	}
-
-	fmt.Println("Done category")
 	webfilter := &models.WebFilter{
-		Host:     wf.Hostname,
-		Url:      wf.Url,
-		Log:      log,
-		Profile:  profile,
-		Status:   status,
-		Category: category,
+		Host: wf.Hostname,
+		Url:  wf.Url,
+		Log:  log,
 	}
-	fmt.Println("WebFilter:", webfilter)
-	err = txn.Insert(webfilter)
-	fmt.Println("Error:", err)
-	if err != nil {
+
+	self.get <- []string{"profile", wf.Profile}
+	fResult = <-self.response
+	switch t := fResult.(type) {
+	case *models.Profile:
+		webfilter.Profile = t
+	case error:
+		return t
+	}
+
+	if status, err := dal.GetUtmstatusByName(txn, wf.Status); err != nil {
+		return err
+	} else if status == nil {
+		return errors.New("Invalid UTM status value: " + wf.Status)
+	} else {
+		webfilter.Status = status
+	}
+
+	self.get <- []string{"category", wf.CategoryDesc}
+	fResult = <-self.response
+	switch t := fResult.(type) {
+	case *models.Category:
+		webfilter.Category = t
+	case error:
+		return t
+	}
+
+	if err := txn.Insert(webfilter); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (self *ParserBatch) ForeignTableGet() {
+	for {
+		select {
+		case req := <-self.get:
+			var fResult interface{}
+			txn, err := self.dbm.Begin()
+			if err != nil {
+				self.response <- err
+			} else {
+				defer txn.Rollback()
+				switch req[0] {
+				case "device":
+					fResult, err = dal.GetOrInsertDeviceBySerial(txn, req[1], req[2])
+				case "logtype":
+					fResult, err = dal.GetOrInsertLogtypeByNames(txn, req[1], req[2])
+				case "user":
+					fResult, err = dal.GetOrInsertUserByName(txn, req[1])
+				case "service":
+					fResult, err = dal.GetOrInsertServiceByName(txn, req[1])
+				case "profile":
+					fResult, err = dal.GetOrInsertProfileByName(txn, req[1])
+				case "category":
+					fResult, err = dal.GetOrInsertCategoryByDescription(txn, req[1])
+				default:
+					err = errors.New("Invalid foreign table name")
+				}
+
+				if err != nil {
+					txn.Rollback()
+					self.response <- err
+				} else {
+					txn.Commit()
+					self.response <- fResult
+				}
+			}
+		case <-self.quit:
+			return
+		}
+	}
 }

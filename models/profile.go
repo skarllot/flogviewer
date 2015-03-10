@@ -28,4 +28,7 @@ type Profile struct {
 func DefineProfileTable(dbm *gorp.DbMap) {
 	t := dbm.AddTableWithName(Profile{}, "profile")
 	t.SetKeys(true, "id")
+	t.ColMap("name").
+		SetUnique(true).
+		SetNotNull(true)
 }

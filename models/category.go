@@ -28,5 +28,7 @@ type Category struct {
 func DefineCategoryTable(dbm *gorp.DbMap) {
 	t := dbm.AddTableWithName(Category{}, "category")
 	t.SetKeys(true, "id")
-	t.ColMap("description").SetNotNull(true)
+	t.ColMap("description").
+		SetUnique(true).
+		SetNotNull(true)
 }

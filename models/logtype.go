@@ -35,4 +35,5 @@ func DefineLogtypeTable(dbm *gorp.DbMap) {
 	t.ColMap("level2").
 		SetMaxSize(45).
 		SetNotNull(true)
+	t.SetUniqueTogether("level1", "level2")
 }

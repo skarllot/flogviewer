@@ -34,7 +34,9 @@ func DefineVirusTable(dbm *gorp.DbMap) {
 	t := dbm.AddTableWithName(Virus{}, "virus")
 	t.SetKeys(false, "id")
 	SetNotNull(t, "status", "virusdef")
-	t.ColMap("url").SetMaxSize(2048).SetNotNull(true)
+	t.ColMap("url").
+		SetMaxSize(2048).
+		SetNotNull(true)
 }
 
 func (self *Virus) PreInsert(gorp.SqlExecutor) error {

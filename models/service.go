@@ -28,4 +28,7 @@ type Service struct {
 func DefineServiceTable(dbm *gorp.DbMap) {
 	t := dbm.AddTableWithName(Service{}, "service")
 	t.SetKeys(true, "id")
+	t.ColMap("name").
+		SetUnique(true).
+		SetNotNull(true)
 }

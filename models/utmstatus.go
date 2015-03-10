@@ -28,6 +28,9 @@ type UtmStatus struct {
 func DefineUtmstatusTable(dbm *gorp.DbMap) {
 	t := dbm.AddTableWithName(UtmStatus{}, "utmstatus")
 	t.SetKeys(true, "id")
+	t.ColMap("name").
+		SetUnique(true).
+		SetNotNull(true)
 }
 
 func InitUtmstatusTable(txn *gorp.Transaction) {
