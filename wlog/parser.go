@@ -252,23 +252,56 @@ func (self *ParserBatch) ForeignTableGet() {
 		return
 	}
 
+	deviceCache := make(map[string]*models.Device, 0)
+	logtypeCache := make(map[string]*models.LogType, 0)
+	userCache := make(map[string]*models.User, 0)
+	serviceCache := make(map[string]*models.Service, 0)
+	profileCache := make(map[string]*models.Profile, 0)
+	categoryCache := make(map[string]*models.Category, 0)
+
 	for {
 		select {
 		case req := <-self.get:
 			var fResult interface{}
+			var ok bool
+			err = nil
 			switch req[0] {
 			case "device":
-				fResult, err = dal.GetOrInsertDeviceBySerial(txn, req[1], req[2])
+				fResult, ok = deviceCache[req[1]]
+				if !ok {
+					fResult, err = dal.GetOrInsertDeviceBySerial(txn, req[1], req[2])
+					deviceCache[req[1]] = fResult.(*models.Device)
+				}
 			case "logtype":
-				fResult, err = dal.GetOrInsertLogtypeByNames(txn, req[1], req[2])
+				fResult, ok = logtypeCache[req[1]+req[2]]
+				if !ok {
+					fResult, err = dal.GetOrInsertLogtypeByNames(txn, req[1], req[2])
+					logtypeCache[req[1]+req[2]] = fResult.(*models.LogType)
+				}
 			case "user":
-				fResult, err = dal.GetOrInsertUserByName(txn, req[1])
+				fResult, ok = userCache[req[1]]
+				if !ok {
+					fResult, err = dal.GetOrInsertUserByName(txn, req[1])
+					userCache[req[1]] = fResult.(*models.User)
+				}
 			case "service":
-				fResult, err = dal.GetOrInsertServiceByName(txn, req[1])
+				fResult, ok = serviceCache[req[1]]
+				if !ok {
+					fResult, err = dal.GetOrInsertServiceByName(txn, req[1])
+					serviceCache[req[1]] = fResult.(*models.Service)
+				}
 			case "profile":
-				fResult, err = dal.GetOrInsertProfileByName(txn, req[1])
+				fResult, ok = profileCache[req[1]]
+				if !ok {
+					fResult, err = dal.GetOrInsertProfileByName(txn, req[1])
+					profileCache[req[1]] = fResult.(*models.Profile)
+				}
 			case "category":
-				fResult, err = dal.GetOrInsertCategoryByDescription(txn, req[1])
+				fResult, ok = categoryCache[req[1]]
+				if !ok {
+					fResult, err = dal.GetOrInsertCategoryByDescription(txn, req[1])
+					categoryCache[req[1]] = fResult.(*models.Category)
+				}
 			default:
 				err = errors.New("Invalid foreign table name")
 			}
