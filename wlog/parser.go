@@ -38,22 +38,30 @@ const (
 
 type ParserBatch struct {
 	dbm      *gorp.DbMap
+	file     *models.File
 	get      chan []string
 	response chan interface{}
 	quit     chan bool
 }
 
-func ParseFile(r io.Reader, dbm *gorp.DbMap) error {
+func ParseFile(r io.Reader, fileRow *models.File, dbm *gorp.DbMap) error {
 	chanLine := make(chan *WebFilter)
 	jobScan := make(chan bool, PARSE_BATCH_SIZE)
 
 	scanner := bufio.NewScanner(r)
 	defer close(chanLine)
 	go func() {
+		var linesCount int64 = 0
 		for scanner.Scan() {
+			linesCount++
+			if linesCount <= fileRow.Count {
+				continue
+			}
+
 			go ParseLine(scanner.Text(), chanLine)
 			jobScan <- true
 		}
+		fileRow.Count = linesCount
 		close(jobScan)
 	}()
 
@@ -61,6 +69,7 @@ func ParseFile(r io.Reader, dbm *gorp.DbMap) error {
 	chanBatch := make(chan int)
 	batcher := &ParserBatch{
 		dbm:      dbm,
+		file:     fileRow,
 		get:      make(chan []string),
 		response: make(chan interface{}),
 		quit:     make(chan bool),
@@ -156,6 +165,7 @@ func (self *ParserBatch) InsertWebFilter(wf WebFilter, txn *gorp.Transaction) er
 		SentByte:     wf.TrafficOut,
 		ReceivedByte: wf.TrafficIn,
 		Message:      &message,
+		File:         self.file,
 	}
 
 	self.get <- []string{"device", wf.DeviceSerial, wf.Device}

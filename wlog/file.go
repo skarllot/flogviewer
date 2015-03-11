@@ -22,13 +22,21 @@ import (
 	"fmt"
 	"github.com/go-gorp/gorp"
 	"github.com/skarllot/flogviewer/common"
+	"github.com/skarllot/flogviewer/dal"
+	"github.com/skarllot/flogviewer/models"
 	"github.com/skarllot/gocli"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
+	"regexp"
 	"time"
+)
+
+const (
+	FILENAME_WLOG_PATTERN1     = `[^_]+_wlog_(\d{8}-\d{4})-(\d{8}-\d{4}).log.gz$`
+	FILENAME_WLOG_PATTERN2     = `[^_]+_wlog_(\d{8}-\d{4})-Present.log.gz$`
+	FILENAME_WLOG_DATE_PATTERN = `20060102-1504`
 )
 
 func (wfc *WebFilterCommand) Load(cmd *gocli.Command, args []string) {
@@ -40,47 +48,83 @@ func (wfc *WebFilterCommand) Load(cmd *gocli.Command, args []string) {
 	}
 
 	dt1 := time.Now()
-	done := false
-	var err error
-	defer func() {
-		if !done {
-			fmt.Println("Parsing log files error")
-			fmt.Println(err)
-		}
-	}()
+	fError := func(e error) {
+		fmt.Println("Parsing log files error")
+		fmt.Println(e)
+	}
 
 	switch args[0] {
 	case "dir":
 		files, err := ioutil.ReadDir(args[1])
 		if err != nil {
+			fError(err)
 			return
 		}
 		for _, f := range files {
 			fname := path.Join(args[1], f.Name())
-			if strings.Index(fname, ".log.gz") == -1 ||
-				strings.Index(fname, "wlog") == -1 {
-				continue
-			}
-			err = wfc.LoadFile(fname, wfc.Dbm)
+			err := wfc.LoadFile(fname, wfc.Dbm)
 			if err != nil {
+				fError(err)
 				return
 			}
 		}
 	case "file":
 		if err := wfc.LoadFile(args[1], wfc.Dbm); err != nil {
+			fError(err)
 			return
 		}
 	default:
-		err = errors.New("You must choose between dir and file")
+		fError(errors.New("You must choose between dir and file"))
 		return
 	}
 
 	wfc.filter = wfc.list
-	done = true
 	fmt.Printf("Parsing log files done [%v  %d items]\n", time.Now().Sub(dt1), len(wfc.list))
 }
 
 func (wfc *WebFilterCommand) LoadFile(fname string, dbm *gorp.DbMap) error {
+	r1, _ := regexp.Compile(FILENAME_WLOG_PATTERN1)
+	r2, _ := regexp.Compile(FILENAME_WLOG_PATTERN2)
+
+	var dt1, dt2 time.Time
+	var isPresent bool
+	if m := r1.FindStringSubmatch(fname); m != nil {
+		dt1, _ = time.Parse(FILENAME_WLOG_DATE_PATTERN, m[1])
+		dt2, _ = time.Parse(FILENAME_WLOG_DATE_PATTERN, m[2])
+		isPresent = false
+	} else if m = r2.FindStringSubmatch(fname); m != nil {
+		dt1, _ = time.Parse(FILENAME_WLOG_DATE_PATTERN, m[1])
+		isPresent = true
+	} else {
+		fmt.Println("Skipped file:", fname)
+		return nil
+	}
+
+	txn, err := dbm.Begin()
+	if err != nil {
+		return err
+	}
+	defer txn.Rollback()
+
+	fileRow, err := dal.GetFileByDate(txn, dt1)
+	if err != nil {
+		return err
+	} else if fileRow == nil {
+		fileRow = &models.File{
+			Begin: dt1.Unix(),
+			Count: 0,
+		}
+		if !isPresent {
+			fileRow.End = dt2.Unix()
+		}
+		err = txn.Insert(fileRow)
+		if err != nil {
+			return err
+		}
+	} else if fileRow.End > 0 {
+		return nil
+	}
+
 	var reader io.Reader
 	file, err := os.Open(fname)
 	if err != nil {
@@ -95,10 +139,16 @@ func (wfc *WebFilterCommand) LoadFile(fname string, dbm *gorp.DbMap) error {
 	defer gz.Close()
 	reader = gz
 
-	err = ParseFile(reader, dbm)
+	err = ParseFile(reader, fileRow, dbm)
 	if err != nil {
 		return err
 	}
+
+	if !isPresent {
+		fileRow.End = dt2.Unix()
+	}
+	txn.Update(fileRow)
+	txn.Commit()
 	return nil
 }
 

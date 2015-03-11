@@ -23,6 +23,7 @@ import (
 
 type Log struct {
 	Id           int64     `db:"id"`
+	FileId       int64     `db:"file"`
 	LogtypeId    int64     `db:"logtype"`
 	DeviceId     int64     `db:"device"`
 	LevelId      int64     `db:"level"`
@@ -41,6 +42,7 @@ type Log struct {
 	ReceivedByte uint64    `db:"received_byte"`
 	Message      *string   `db:"message"`
 
+	File    *File     `db:"-"`
 	LogType *LogType  `db:"-"`
 	Device  *Device   `db:"-"`
 	Level   *LogLevel `db:"-"`
@@ -52,14 +54,18 @@ func DefineLogTable(dbm *gorp.DbMap) {
 	t := dbm.AddTableWithName(Log{}, "log")
 	t.SetKeys(true, "id")
 	SetNotNull(t,
-		"logtype", "device", "level", "user", "service", "date", "policy_id",
-		"source_if", "dest_port", "dest_if", "sent_byte", "received_byte")
+		"file", "logtype", "device", "level", "user", "service", "date",
+		"policy_id", "source_if", "dest_port", "dest_if", "sent_byte",
+		"received_byte")
 	t.ColMap("source_ip").SetMaxSize(45).SetNotNull(true)
 	t.ColMap("dest_ip").SetMaxSize(45).SetNotNull(true)
 	t.ColMap("message").SetMaxSize(255)
 }
 
 func (self *Log) PreInsert(gorp.SqlExecutor) error {
+	if self.File != nil {
+		self.FileId = self.File.Id
+	}
 	if self.LogType != nil {
 		self.LogtypeId = self.LogType.Id
 	}
@@ -80,7 +86,13 @@ func (self *Log) PreInsert(gorp.SqlExecutor) error {
 }
 
 func (self *Log) PostGet(exe gorp.SqlExecutor) error {
-	obj, err := exe.Get(LogType{}, self.LogtypeId)
+	obj, err := exe.Get(File{}, self.FileId)
+	if err != nil {
+		return err
+	}
+	self.File = obj.(*File)
+
+	obj, err = exe.Get(LogType{}, self.LogtypeId)
 	if err != nil {
 		return err
 	}
