@@ -33,8 +33,8 @@ func RootChilds(dbm *gorp.DbMap) gocli.Commands {
 	return gocli.Commands{
 		&gocli.Command{
 			Name: "wlog",
-			Help: "Web Filter",
-			Load: w.LoadWlog,
+			Help: "Loads Web Filter log files",
+			Run:  w.Load,
 		},
 	}
 }

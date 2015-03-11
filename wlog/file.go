@@ -53,6 +53,7 @@ func (wfc *WebFilterCommand) Load(cmd *gocli.Command, args []string) {
 		fmt.Println(e)
 	}
 
+	countRecord := int64(0)
 	switch args[0] {
 	case "dir":
 		files, err := ioutil.ReadDir(args[1])
@@ -62,27 +63,34 @@ func (wfc *WebFilterCommand) Load(cmd *gocli.Command, args []string) {
 		}
 		for _, f := range files {
 			fname := path.Join(args[1], f.Name())
-			err := wfc.LoadFile(fname, wfc.Dbm)
+			count, err := wfc.LoadFile(fname, wfc.Dbm)
 			if err != nil {
 				fError(err)
 				return
 			}
+			countRecord += count
 		}
 	case "file":
-		if err := wfc.LoadFile(args[1], wfc.Dbm); err != nil {
+		count, err := wfc.LoadFile(args[1], wfc.Dbm)
+		if err != nil {
 			fError(err)
 			return
 		}
+		countRecord += count
 	default:
 		fError(errors.New("You must choose between dir and file"))
 		return
 	}
 
-	wfc.filter = wfc.list
-	fmt.Printf("Parsing log files done [%v  %d items]\n", time.Now().Sub(dt1), len(wfc.list))
+	fmt.Printf(
+		"Parsing log files done [%v  %d items]\n",
+		time.Now().Sub(dt1), countRecord)
 }
 
-func (wfc *WebFilterCommand) LoadFile(fname string, dbm *gorp.DbMap) error {
+func (wfc *WebFilterCommand) LoadFile(
+	fname string,
+	dbm *gorp.DbMap) (int64, error) {
+
 	r1, _ := regexp.Compile(FILENAME_WLOG_PATTERN1)
 	r2, _ := regexp.Compile(FILENAME_WLOG_PATTERN2)
 
@@ -97,18 +105,18 @@ func (wfc *WebFilterCommand) LoadFile(fname string, dbm *gorp.DbMap) error {
 		isPresent = true
 	} else {
 		fmt.Println("Skipped file:", fname)
-		return nil
+		return 0, nil
 	}
 
 	txn, err := dbm.Begin()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer txn.Rollback()
 
 	fileRow, err := dal.GetFileByDate(txn, dt1)
 	if err != nil {
-		return err
+		return 0, err
 	} else if fileRow == nil {
 		fileRow = &models.File{
 			Begin: dt1,
@@ -119,29 +127,30 @@ func (wfc *WebFilterCommand) LoadFile(fname string, dbm *gorp.DbMap) error {
 		}
 		err = txn.Insert(fileRow)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	} else if fileRow.End.Year() > 1 {
-		return nil
+		return 0, nil
 	}
 
 	var reader io.Reader
 	file, err := os.Open(fname)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer file.Close()
 
 	gz, err := gzip.NewReader(file)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer gz.Close()
 	reader = gz
 
+	countInitial := fileRow.Count
 	err = ParseFile(reader, fileRow, dbm)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	if !isPresent {
@@ -149,34 +158,5 @@ func (wfc *WebFilterCommand) LoadFile(fname string, dbm *gorp.DbMap) error {
 	}
 	txn.Update(fileRow)
 	txn.Commit()
-	return nil
-}
-
-func (wfc *WebFilterCommand) SaveToFile(cmd *gocli.Command, args []string) {
-	args = common.ParseParameters(args)
-	if len(args) != 1 {
-		fmt.Println("One file name must be defined")
-		return
-	}
-
-	file, err := os.Create(args[0])
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer file.Close()
-
-	file.WriteString("Date;Device;Level;PolicyId;User;SourceIP;SourceIf;" +
-		"DestIP;DestPort;DestIf;Service;Hostname;Profile;Status;Url;Message;" +
-		"CategoryId;CategoryDesc\n")
-	for _, v := range wfc.filter {
-		file.WriteString(fmt.Sprintf("\"%v\";\"%v\";\"%v\";\"%v\";\"%v\";"+
-			"\"%v\";\"%v\";\"%v\";\"%v\";\"%v\";\"%v\";\"%v\";\"%v\";"+
-			"\"%v\";\"%v\";\"%v\";\"%v\";\"%v\"\n",
-			v.Date, v.Device, v.LogLevel, v.PolicyId, v.User, v.SourceIP,
-			v.SourceIf, v.DestIP, v.DestPort, v.DestIf, v.Service,
-			v.Hostname, v.Profile, v.Status, v.Url, v.Message, v.CategoryId,
-			v.CategoryDesc))
-	}
-	file.Sync()
+	return fileRow.Count - countInitial, nil
 }
