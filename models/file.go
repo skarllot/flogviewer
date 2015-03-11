@@ -18,13 +18,14 @@ package models
 
 import (
 	"github.com/go-gorp/gorp"
+	"time"
 )
 
 type File struct {
-	Id    int64 `db:"id"`
-	Begin int64 `db:"begin_dt"`
-	End   int64 `db:"end_dt"`
-	Count int64 `db:"count_lines"`
+	Id    int64     `db:"id"`
+	Begin time.Time `db:"begin_dt"`
+	End   time.Time `db:"end_dt"`
+	Count int64     `db:"count_lines"`
 }
 
 func DefineFileTable(dbm *gorp.DbMap) {

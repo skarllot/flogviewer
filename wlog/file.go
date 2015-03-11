@@ -111,17 +111,17 @@ func (wfc *WebFilterCommand) LoadFile(fname string, dbm *gorp.DbMap) error {
 		return err
 	} else if fileRow == nil {
 		fileRow = &models.File{
-			Begin: dt1.Unix(),
+			Begin: dt1,
 			Count: 0,
 		}
 		if !isPresent {
-			fileRow.End = dt2.Unix()
+			fileRow.End = dt2
 		}
 		err = txn.Insert(fileRow)
 		if err != nil {
 			return err
 		}
-	} else if fileRow.End > 0 {
+	} else if fileRow.End.Year() > 1 {
 		return nil
 	}
 
@@ -145,7 +145,7 @@ func (wfc *WebFilterCommand) LoadFile(fname string, dbm *gorp.DbMap) error {
 	}
 
 	if !isPresent {
-		fileRow.End = dt2.Unix()
+		fileRow.End = dt2
 	}
 	txn.Update(fileRow)
 	txn.Commit()

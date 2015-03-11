@@ -35,7 +35,7 @@ func GetFileByDate(
 	qrows := make([]models.File, 0)
 
 	_, err := txn.Select(&qrows, SQL_FILE_BYDATE, map[string]interface{}{
-		"begin": begin.Unix(),
+		"begin": begin,
 	})
 	if err != nil {
 		return nil, err

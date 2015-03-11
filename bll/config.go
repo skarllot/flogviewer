@@ -22,9 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-gorp/gorp"
-	_ "github.com/go-sql-driver/mysql"
+	//_ "github.com/go-sql-driver/mysql"
 	"github.com/skarllot/flogviewer/models"
-	"strconv"
+	_ "github.com/ziutek/mymysql/godrv"
 )
 
 type Configuration struct {
@@ -63,6 +63,8 @@ func (db *Database) GetConnectionString() (string, error) {
 	switch db.Engine {
 	case "mysql":
 		return db.getMysqlConnectionString(), nil
+	case "mymysql":
+		return db.getMymysqlConnectionString(), nil
 	default:
 		if len(db.Engine) == 0 {
 			return "", errors.New(
@@ -80,9 +82,19 @@ func (db *Database) getMysqlConnectionString() string {
 		db.DbArgs = "?" + db.DbArgs
 	}
 
-	return fmt.Sprintf("%s:%s@%s([%s]:%s)/%s%s",
-		db.User, db.Password, db.Protocol,
-		db.Host, strconv.Itoa(int(db.Port)), db.Name, db.DbArgs)
+	return fmt.Sprintf(
+		"%s:%s@%s([%s]:%d)/%s%s",
+		db.User, db.Password, db.Protocol, db.Host, db.Port, db.Name, db.DbArgs)
+}
+
+func (db *Database) getMymysqlConnectionString() string {
+	if len(db.DbArgs) > 0 {
+		db.DbArgs = "," + db.DbArgs
+	}
+
+	return fmt.Sprintf(
+		"%s:%s:%d%s*%s/%s/%s",
+		db.Protocol, db.Host, db.Port, db.DbArgs, db.Name, db.User, db.Password)
 }
 
 func (self *Configuration) CreateDbMap() (*gorp.DbMap, error) {
@@ -99,6 +111,7 @@ func (self *Configuration) CreateDbMap() (*gorp.DbMap, error) {
 	var dbm *gorp.DbMap
 	switch engine {
 	case "mysql":
+	case "mymysql":
 		dbm = &gorp.DbMap{
 			Db:      db,
 			Dialect: gorp.MySQLDialect{"InnoDB", "UTF8"},
