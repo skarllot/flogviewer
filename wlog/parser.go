@@ -38,56 +38,58 @@ const (
 
 type ParserBatch struct {
 	dbm      *gorp.DbMap
-	pool     chan interface{}
 	get      chan []string
 	response chan interface{}
 	quit     chan bool
 }
 
 func ParseFile(r io.Reader, dbm *gorp.DbMap) error {
-	scanner := bufio.NewScanner(r)
 	chanLine := make(chan *WebFilter)
-	countLines := 0
+	jobScan := make(chan bool, PARSE_BATCH_SIZE)
+
+	scanner := bufio.NewScanner(r)
 	defer close(chanLine)
-	for scanner.Scan() {
-		go ParseLine(scanner.Text(), chanLine)
-		countLines++
-	}
+	go func() {
+		for scanner.Scan() {
+			go ParseLine(scanner.Text(), chanLine)
+			jobScan <- true
+		}
+		close(jobScan)
+	}()
 
 	batch := make([]*WebFilter, 0, PARSE_BATCH_SIZE)
-	countBatch := 0
 	chanBatch := make(chan int)
 	batcher := &ParserBatch{
 		dbm:      dbm,
-		pool:     make(chan interface{}, PARSE_CONNECTION_POOL),
 		get:      make(chan []string),
 		response: make(chan interface{}),
 		quit:     make(chan bool),
 	}
-	for i := 0; i < PARSE_CONNECTION_POOL; i++ {
-		batcher.pool <- 0
-	}
 	go batcher.ForeignTableGet()
 
-	for i := 0; i < countLines; i++ {
-		item := <-chanLine
-		if item != nil {
-			batch = append(batch, item)
-			if len(batch) == PARSE_BATCH_SIZE {
-				go batcher.InsertWebFilterList(batch, chanBatch)
-				countBatch++
-				batch = make([]*WebFilter, 0, PARSE_BATCH_SIZE)
+	jobBatch := make(chan bool, PARSE_CONNECTION_POOL)
+	go func() {
+		for _ = range jobScan {
+			item := <-chanLine
+			if item != nil {
+				batch = append(batch, item)
+				if len(batch) == PARSE_BATCH_SIZE {
+					go batcher.InsertWebFilterList(batch, chanBatch)
+					jobBatch <- true
+					batch = make([]*WebFilter, 0, PARSE_BATCH_SIZE)
+				}
 			}
 		}
-	}
-	if len(batch) > 0 {
-		go batcher.InsertWebFilterList(batch, chanBatch)
-		countBatch++
-	}
+		if len(batch) > 0 {
+			go batcher.InsertWebFilterList(batch, chanBatch)
+			jobBatch <- true
+		}
+		close(jobBatch)
+	}()
 
 	fmt.Print("Records inserted: ")
 	countRecords, lastPrintedCount := 0, 0
-	for i := 0; i < countBatch; i++ {
+	for _ = range jobBatch {
 		batchResult := <-chanBatch
 		if batchResult > 0 {
 			countRecords += batchResult
@@ -118,9 +120,6 @@ func ParseLine(line string, c chan *WebFilter) {
 }
 
 func (self *ParserBatch) InsertWebFilterList(list []*WebFilter, c chan<- int) {
-	lock := <-self.pool
-	defer func() { self.pool <- lock }()
-
 	txn, err := self.dbm.Begin()
 	if err != nil {
 		fmt.Println("Error begining transaction:", err)
@@ -145,7 +144,9 @@ func (self *ParserBatch) InsertWebFilterList(list []*WebFilter, c chan<- int) {
 func (self *ParserBatch) InsertWebFilter(wf WebFilter, txn *gorp.Transaction) error {
 	message := wf.Message
 	log := &models.Log{
+		LogId:        wf.LogId,
 		Date:         wf.Date,
+		SessionId:    wf.SessionId,
 		PolicyId:     wf.PolicyId,
 		SourceIp:     wf.SourceIPStr,
 		SourceIf:     wf.SourceIf,

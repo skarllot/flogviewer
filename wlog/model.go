@@ -27,10 +27,12 @@ type WebFilter struct {
 	TimeStr      string `log:"time"`
 	Device       string `log:"devname"`
 	DeviceSerial string `log:"devid"`
+	LogId        int64  `log:"logid"`
 	LogType      string `log:"type"`
 	LogSubType   string `log:"subtype"`
 	LogLevel     string `log:"level"`
 	PolicyId     int64  `log:"policyid"`
+	SessionId    int64  `log:"sessionid"`
 	User         string `log:"user"`
 	SourceIP     net.IP
 	SourceIPStr  string `log:"srcip"`

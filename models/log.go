@@ -28,7 +28,9 @@ type Log struct {
 	LevelId      int64     `db:"level"`
 	UserId       int64     `db:"user"`
 	ServiceId    int64     `db:"service"`
+	LogId        int64     `db:"log_id"`
 	Date         time.Time `db:"date"`
+	SessionId    int64     `db:"session_id"`
 	PolicyId     int64     `db:"policy_id"`
 	SourceIp     string    `db:"source_ip"`
 	SourceIf     string    `db:"source_if"`
