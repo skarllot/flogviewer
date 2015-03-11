@@ -1,5 +1,5 @@
 [Database]
-engine=mysql
+engine=mymysql
 host=localhost
 name=flogviewer
 user=flogviewer
