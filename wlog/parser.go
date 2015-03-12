@@ -103,7 +103,7 @@ func ParseFile(r io.Reader, fileRow *models.File, dbm *gorp.DbMap) error {
 		if batchResult > 0 {
 			countRecords += batchResult
 		}
-		if countRecords >= lastPrintedCount+1000 {
+		if countRecords >= lastPrintedCount+10000 {
 			fmt.Printf("%d ", countRecords)
 			lastPrintedCount = countRecords
 		}
@@ -263,56 +263,49 @@ func (self *ParserBatch) ForeignTableGet() {
 		return
 	}
 
-	deviceCache := make(map[string]*models.Device, 0)
-	logtypeCache := make(map[string]*models.LogType, 0)
-	userCache := make(map[string]*models.User, 0)
-	serviceCache := make(map[string]*models.Service, 0)
-	profileCache := make(map[string]*models.Profile, 0)
-	categoryCache := make(map[string]*models.Category, 0)
+	deviceCache := common.NewRoutineCache(
+		5, func(keys ...string) (interface{}, error) {
+			return dal.GetOrInsertDeviceBySerial(txn, keys[0], keys[1])
+		})
+	logtypeCache := common.NewRoutineCache(
+		5, func(keys ...string) (interface{}, error) {
+			return dal.GetOrInsertLogtypeByNames(txn, keys[0], keys[1])
+		})
+	userCache := common.NewRoutineCache(
+		100, func(keys ...string) (interface{}, error) {
+			return dal.GetOrInsertUserByName(txn, keys[0])
+		})
+	serviceCache := common.NewRoutineCache(
+		5, func(keys ...string) (interface{}, error) {
+			return dal.GetOrInsertServiceByName(txn, keys[0])
+		})
+	profileCache := common.NewRoutineCache(
+		20, func(keys ...string) (interface{}, error) {
+			return dal.GetOrInsertProfileByName(txn, keys[0])
+		})
+	categoryCache := common.NewRoutineCache(
+		80, func(keys ...string) (interface{}, error) {
+			return dal.GetOrInsertCategoryByDescription(txn, keys[0])
+		})
 
 	for {
 		select {
 		case req := <-self.get:
 			var fResult interface{}
-			var ok bool
 			err = nil
 			switch req[0] {
 			case "device":
-				fResult, ok = deviceCache[req[1]]
-				if !ok {
-					fResult, err = dal.GetOrInsertDeviceBySerial(txn, req[1], req[2])
-					deviceCache[req[1]] = fResult.(*models.Device)
-				}
+				fResult, err = deviceCache.Value(req[1], req[2])
 			case "logtype":
-				fResult, ok = logtypeCache[req[1]+req[2]]
-				if !ok {
-					fResult, err = dal.GetOrInsertLogtypeByNames(txn, req[1], req[2])
-					logtypeCache[req[1]+req[2]] = fResult.(*models.LogType)
-				}
+				fResult, err = logtypeCache.Value(req[1], req[2])
 			case "user":
-				fResult, ok = userCache[req[1]]
-				if !ok {
-					fResult, err = dal.GetOrInsertUserByName(txn, req[1])
-					userCache[req[1]] = fResult.(*models.User)
-				}
+				fResult, err = userCache.Value(req[1])
 			case "service":
-				fResult, ok = serviceCache[req[1]]
-				if !ok {
-					fResult, err = dal.GetOrInsertServiceByName(txn, req[1])
-					serviceCache[req[1]] = fResult.(*models.Service)
-				}
+				fResult, err = serviceCache.Value(req[1])
 			case "profile":
-				fResult, ok = profileCache[req[1]]
-				if !ok {
-					fResult, err = dal.GetOrInsertProfileByName(txn, req[1])
-					profileCache[req[1]] = fResult.(*models.Profile)
-				}
+				fResult, err = profileCache.Value(req[1])
 			case "category":
-				fResult, ok = categoryCache[req[1]]
-				if !ok {
-					fResult, err = dal.GetOrInsertCategoryByDescription(txn, req[1])
-					categoryCache[req[1]] = fResult.(*models.Category)
-				}
+				fResult, err = categoryCache.Value(req[1])
 			default:
 				err = errors.New("Invalid foreign table name")
 			}
