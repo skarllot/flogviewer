@@ -18,31 +18,30 @@ package models
 
 import (
 	"github.com/go-gorp/gorp"
+	"github.com/skarllot/flogviewer/common"
 )
 
 type WebFilter struct {
 	Id         int64  `db:"id"`
 	ProfileId  int64  `db:"profile"`
 	StatusId   int64  `db:"status"`
-	CategoryId int64  `db:"category"`
-	Host       string `db:"host"`
+	HostId     int64  `db:"host"`
+	CategoryId *int64 `db:"category"`
 	Url        string `db:"url"`
 
 	Log      *Log       `db:"-"`
 	Profile  *Profile   `db:"-"`
 	Status   *UtmStatus `db:"-"`
+	Host     *Host      `db:"-"`
 	Category *Category  `db:"-"`
 }
 
 func DefineWebfilterTable(dbm *gorp.DbMap) {
 	t := dbm.AddTableWithName(WebFilter{}, "webfilter")
 	t.SetKeys(false, "id")
-	t.ColMap("host").
-		SetMaxSize(255).
-		SetNotNull(true)
+	SetNotNull(t, "profile", "status", "host", "url")
 	t.ColMap("url").
-		SetMaxSize(2048).
-		SetNotNull(true)
+		SetMaxSize(4096)
 }
 
 func (self *WebFilter) PreInsert(gorp.SqlExecutor) error {
@@ -55,8 +54,11 @@ func (self *WebFilter) PreInsert(gorp.SqlExecutor) error {
 	if self.Status != nil {
 		self.StatusId = self.Status.Id
 	}
+	if self.Host != nil {
+		self.HostId = self.Host.Id
+	}
 	if self.Category != nil {
-		self.CategoryId = self.Category.Id
+		self.CategoryId = common.NInt64(self.Category.Id)
 	}
 
 	return nil
@@ -81,10 +83,18 @@ func (self *WebFilter) PostGet(exe gorp.SqlExecutor) error {
 	}
 	self.Status = obj.(*UtmStatus)
 
-	obj, err = exe.Get(Category{}, self.CategoryId)
+	obj, err = exe.Get(Host{}, self.HostId)
 	if err != nil {
 		return err
 	}
-	self.Category = obj.(*Category)
+	self.Host = obj.(*Host)
+
+	if self.CategoryId != nil {
+		obj, err = exe.Get(Category{}, *self.CategoryId)
+		if err != nil {
+			return err
+		}
+		self.Category = obj.(*Category)
+	}
 	return nil
 }

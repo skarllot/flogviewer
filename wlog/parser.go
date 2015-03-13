@@ -151,7 +151,6 @@ func (self *ParserBatch) InsertWebFilterList(list []*WebFilter, c chan<- int) {
 }
 
 func (self *ParserBatch) InsertWebFilter(wf WebFilter, txn *gorp.Transaction) error {
-	message := wf.Message
 	log := &models.Log{
 		LogId:        wf.LogId,
 		Date:         wf.Date,
@@ -164,7 +163,7 @@ func (self *ParserBatch) InsertWebFilter(wf WebFilter, txn *gorp.Transaction) er
 		DestIf:       wf.DestIf,
 		SentByte:     wf.TrafficOut,
 		ReceivedByte: wf.TrafficIn,
-		Message:      &message,
+		Message:      common.NString(wf.Message),
 		File:         self.file,
 	}
 
@@ -217,9 +216,8 @@ func (self *ParserBatch) InsertWebFilter(wf WebFilter, txn *gorp.Transaction) er
 	}
 
 	webfilter := &models.WebFilter{
-		Host: wf.Hostname,
-		Url:  wf.Url,
-		Log:  log,
+		Log: log,
+		Url: wf.Url,
 	}
 
 	self.get <- []string{"profile", wf.Profile}
@@ -239,13 +237,28 @@ func (self *ParserBatch) InsertWebFilter(wf WebFilter, txn *gorp.Transaction) er
 		webfilter.Status = status
 	}
 
-	self.get <- []string{"category", wf.CategoryDesc}
+	self.get <- []string{"host", wf.Hostname, wf.CategoryDesc}
 	fResult = <-self.response
 	switch t := fResult.(type) {
-	case *models.Category:
-		webfilter.Category = t
+	case *models.Host:
+		webfilter.Host = t
 	case error:
 		return t
+	}
+
+	if len(wf.CategoryDesc) > 0 {
+		if wf.CategoryDesc == webfilter.Host.Category.Description {
+			webfilter.Category = webfilter.Host.Category
+		} else {
+			self.get <- []string{"category", wf.CategoryDesc}
+			fResult = <-self.response
+			switch t := fResult.(type) {
+			case *models.Category:
+				webfilter.Category = t
+			case error:
+				return t
+			}
+		}
 	}
 
 	if err := txn.Insert(webfilter); err != nil {
@@ -264,48 +277,77 @@ func (self *ParserBatch) ForeignTableGet() {
 	}
 
 	deviceCache := common.NewRoutineCache(
-		5, func(keys ...string) (interface{}, error) {
-			return dal.GetOrInsertDeviceBySerial(txn, keys[0], keys[1])
+		5, func(key []string, args []interface{}) (interface{}, error) {
+			return dal.GetOrInsertDeviceBySerial(txn, key[0], args[0].(string))
 		})
 	logtypeCache := common.NewRoutineCache(
-		5, func(keys ...string) (interface{}, error) {
-			return dal.GetOrInsertLogtypeByNames(txn, keys[0], keys[1])
+		5, func(key []string, args []interface{}) (interface{}, error) {
+			return dal.GetOrInsertLogtypeByNames(txn, key[0], key[1])
 		})
 	userCache := common.NewRoutineCache(
-		100, func(keys ...string) (interface{}, error) {
-			return dal.GetOrInsertUserByName(txn, keys[0])
+		100, func(key []string, args []interface{}) (interface{}, error) {
+			return dal.GetOrInsertUserByName(txn, key[0])
 		})
 	serviceCache := common.NewRoutineCache(
-		5, func(keys ...string) (interface{}, error) {
-			return dal.GetOrInsertServiceByName(txn, keys[0])
+		5, func(key []string, args []interface{}) (interface{}, error) {
+			return dal.GetOrInsertServiceByName(txn, key[0])
 		})
 	profileCache := common.NewRoutineCache(
-		20, func(keys ...string) (interface{}, error) {
-			return dal.GetOrInsertProfileByName(txn, keys[0])
+		20, func(key []string, args []interface{}) (interface{}, error) {
+			return dal.GetOrInsertProfileByName(txn, key[0])
 		})
 	categoryCache := common.NewRoutineCache(
-		80, func(keys ...string) (interface{}, error) {
-			return dal.GetOrInsertCategoryByDescription(txn, keys[0])
+		80, func(key []string, args []interface{}) (interface{}, error) {
+			return dal.GetOrInsertCategoryByDescription(txn, key[0])
+		})
+	hostCache := common.NewRoutineCache(
+		1000, func(key []string, args []interface{}) (interface{}, error) {
+			return dal.GetOrInsertHostByName(
+				txn, key[0], args[0].(*models.Category))
 		})
 
 	for {
 		select {
 		case req := <-self.get:
-			var fResult interface{}
+			var fResult interface{} = nil
 			err = nil
 			switch req[0] {
-			case "device":
-				fResult, err = deviceCache.Value(req[1], req[2])
-			case "logtype":
-				fResult, err = logtypeCache.Value(req[1], req[2])
-			case "user":
-				fResult, err = userCache.Value(req[1])
-			case "service":
-				fResult, err = serviceCache.Value(req[1])
-			case "profile":
-				fResult, err = profileCache.Value(req[1])
-			case "category":
-				fResult, err = categoryCache.Value(req[1])
+			case "device": // 1=serial, 2=device
+				fResult, err = deviceCache.Key(req[1]).Value(req[2])
+			case "logtype": // 1=level1, 2=level2
+				fResult, err = logtypeCache.Key(req[1], req[2]).Value()
+			case "user": // 1=name
+				fResult, err = userCache.Key(req[1]).Value()
+			case "service": // 1=name
+				fResult, err = serviceCache.Key(req[1]).Value()
+			case "profile": // 1=name
+				fResult, err = profileCache.Key(req[1]).Value()
+			case "category": // 1=description
+				if len(req[1]) > 0 {
+					fResult, err = categoryCache.Key(req[1]).Value()
+				}
+			case "host": // 1=host.name, 2=category.name
+				var cat *models.Category = nil
+				var host *models.Host = nil
+				if len(req[2]) > 0 {
+					fResult, err = categoryCache.Key(req[2]).Value()
+					if err == nil {
+						cat = fResult.(*models.Category)
+					}
+				}
+				if err == nil {
+					fResult, err = hostCache.Key(req[1]).Value(cat)
+				}
+				if err == nil && cat != nil {
+					host = fResult.(*models.Host)
+					if host.Category == nil {
+						host.Category = cat
+						_, err = txn.Update(host)
+						if err != nil {
+							hostCache.Key(req[2]).SetValue(host)
+						}
+					}
+				}
 			default:
 				err = errors.New("Invalid foreign table name")
 			}

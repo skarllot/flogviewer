@@ -21,7 +21,7 @@ import (
 	"strings"
 )
 
-type OnMissedCache func(keys ...string) (result interface{}, err error)
+type OnMissedCache func(key []string, args []interface{}) (result interface{}, err error)
 
 type RoutineCache struct {
 	cache  map[string]interface{}
@@ -30,12 +30,26 @@ type RoutineCache struct {
 	missed OnMissedCache
 }
 
-func NewRoutineCache(size int, onMiss OnMissedCache) *RoutineCache {
+type RoutineCacheQuery struct {
+	rCache *RoutineCache
+	args   []string
+	key    string
+}
+
+func NewRoutineCache(cacheLen int, onMiss OnMissedCache) *RoutineCache {
 	return &RoutineCache{
-		cache:  make(map[string]interface{}, size),
-		hits:   make(map[string]int, size),
-		maxlen: size,
+		cache:  make(map[string]interface{}, cacheLen),
+		hits:   make(map[string]int, cacheLen),
+		maxlen: cacheLen,
 		missed: onMiss,
+	}
+}
+
+func (self *RoutineCache) Key(args ...string) *RoutineCacheQuery {
+	return &RoutineCacheQuery{
+		rCache: self,
+		args:   args,
+		key:    strings.Join(args, "|"),
 	}
 }
 
@@ -58,25 +72,28 @@ func (self *RoutineCache) removeLeastUsed() {
 	delete(self.hits, key)
 }
 
-func (self *RoutineCache) Value(keys ...string) (interface{}, error) {
-	var err error
-	key := strings.Join(keys, "|")
+func (self *RoutineCacheQuery) SetValue(value interface{}) {
+	self.rCache.cache[self.key] = value
+}
 
-	result, ok := self.cache[key]
+func (self *RoutineCacheQuery) Value(args ...interface{}) (interface{}, error) {
+	var err error
+
+	result, ok := self.rCache.cache[self.key]
 	if ok {
-		self.hits[key]++
+		self.rCache.hits[self.key]++
 		return result, nil
 	} else {
-		result, err = self.missed(keys...)
+		result, err = self.rCache.missed(self.args, args)
 		if err != nil {
 			return nil, err
 		}
 
-		if len(self.cache) == self.maxlen {
-			self.removeLeastUsed()
+		if len(self.rCache.cache) == self.rCache.maxlen {
+			self.rCache.removeLeastUsed()
 		}
-		self.cache[key] = result
-		self.hits[key] = 1
+		self.rCache.cache[self.key] = result
+		self.rCache.hits[self.key] = 1
 		return result, nil
 	}
 }

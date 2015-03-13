@@ -24,6 +24,7 @@ func defineAllTables(dbm *gorp.DbMap) {
 	DefineCategoryTable(dbm)
 	DefineDeviceTable(dbm)
 	DefineFileTable(dbm)
+	DefineHostTable(dbm)
 	DefineLogTable(dbm)
 	DefineLoglevelTable(dbm)
 	DefineLogtypeTable(dbm)
